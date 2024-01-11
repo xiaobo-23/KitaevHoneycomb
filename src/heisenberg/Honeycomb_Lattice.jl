@@ -75,29 +75,73 @@
 # """
 
 function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
-  """
-    Using the ring ordering scheme
-    Nx needs to be an even number
-  """
-	yperiodic = yperiodic && (Ny > 2)
-  N = Nx * Ny
-  Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
-	@show Nbond
+	"""
+		Using the ring ordering scheme
+		Nx needs to be an even number
+	"""
+		yperiodic = yperiodic && (Ny > 2)
+  	N = Nx * Ny
+ 		Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+		@show Nbond
   
-  latt = Lattice(undef, Nbond)
-  b = 0
-  for n in 1:N
-    x = div(n - 1, Ny) + 1
-    y = mod(n - 1, Ny) + 1
-		@show Nx, Ny, x, y, b
+  	latt = Lattice(undef, Nbond)
+  	b = 0
+		for n in 1:N
+			x = div(n - 1, Ny) + 1
+			y = mod(n - 1, Ny) + 1
 
-    # x-direction bonds for A sublattice
+			# x-direction bonds for A sublattice
+			if mod(x, 2) == 0 && x < Nx
+				latt[b += 1] = LatticeBond(n, n + Ny)
+			end
+
+			# bonds for B sublattice
+			if Ny > 1
+				if mod(x, 2) == 1 && x < Nx
+					# @show latt
+					latt[b += 1] = LatticeBond(n, n + Ny)
+					if y != 1
+						latt[b += 1] = LatticeBond(n, n + Ny - 1)
+					end
+				end
+			
+				# periodic bonds 
+				if mod(x, 2) == 1 && yperiodic && y == 1
+					latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
+				end
+			end
+
+		# @show latt
+	end
+
+	return latt
+end
+
+
+function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+	"""
+	  Using the ring ordering scheme
+	  Nx needs to be an even number
+	"""
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	@show Nbond
+	
+	latt = Lattice(undef, Nbond)
+	b = 0
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+		# @show Nx, Ny, x, y, b
+  
+	  	# x-direction bonds for A sublattice
 		if mod(x, 2) == 0 && x < Nx
-      latt[b += 1] = LatticeBond(n, n + Ny)
-    end
-
-    # bonds for B sublattice
-    if Ny > 1
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+  
+		# bonds for B sublattice
+		if Ny > 1
 			if mod(x, 2) == 1 && x < Nx
 				# @show latt
 				latt[b += 1] = LatticeBond(n, n + Ny)
@@ -105,45 +149,52 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 					latt[b += 1] = LatticeBond(n, n + Ny - 1)
 				end
 			end
+
+			# periodic bonds along the x direction
+			if mod(x, 2) == 1 && x == 1
+				latt[b += 1] = LatticeBond(n, n + (Nx - 1) * Ny)
+			end
+
+			@show x, y, yperiodic, n, n + 2 * Ny - 1
 			# periodic bonds 
 			if mod(x, 2) == 1 && yperiodic && y == 1
 				latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
 			end
-    end
+		end
+	
+	# @show latt
+	end
 
-		# @show latt
-  end
-  
 	return latt
 end
 
 
 function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   """
-    Using the C-style ordering scheme
-    Nx needs to be an even number
+	Using the C-style ordering scheme
+	Nx needs to be an even number
   """
 	yperiodic = yperiodic && (Ny > 2)
-  N = Nx * Ny
-  Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
 	@show Nbond
   
-  latt = Lattice(undef, Nbond)
-  b = 0
-  for n in 1:N
+	latt = Lattice(undef, Nbond)
+	b = 0
+	for n in 1:N
 		tmp = div(n - 1, 2 * Ny)
 		x = 2 * tmp + mod(n - 1, 2) + 1
-    y = mod(div(n - 1, 2), Ny) + 1
+		y = mod(div(n - 1, 2), Ny) + 1
 		@show n, x, y
 
-    # x-direction bonds for A sublattice
+		# x-direction bonds for A sublattice
 		if mod(x, 2) == 0 && x < Nx
-      latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
+			latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
 			@show n, x, y, latt[b]
-    end
+		end
 
-    # bonds for B sublattice
-    if Ny > 1
+		# bonds for B sublattice
+		if Ny > 1
 			if mod(x, 2) == 1 && x < Nx
 				# @show latt
 				latt[b += 1] = LatticeBond(n, n + 1)
@@ -151,14 +202,15 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 					latt[b += 1] = LatticeBond(n, n - 1)
 				end
 			end
+
 			# periodic bonds 
 			if mod(x, 2) == 1 && yperiodic && y == 1
 				latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
 			end
-    end
+		end
+	end
 
-		# @show latt
-  end
-  
+
+	# @show latt
 	return latt
 end

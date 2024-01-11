@@ -1,7 +1,7 @@
 # 12/19/2023
 # Set up and simulate the Heisenberg model on a square or triangular lattice
 
-using Pkg
+# using Pkg
 using ITensors
 using HDF5
 
@@ -35,7 +35,7 @@ end
 
 let
   # Set up the lattice parameters
-  Nx = 16
+  Nx = 10
   Ny = 4
   N = Nx * Ny
 
@@ -51,8 +51,9 @@ let
   # @show lattice
   
   # honeycomb lattice
+  # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
   # lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
-  lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
+  lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
   number_of_bonds = length(lattice)
   @show number_of_bonds
   @show lattice
@@ -74,8 +75,8 @@ let
 
   # 1/5/2024
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
-  nsweeps = 10
-  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
+  nsweeps = 12
+  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 4000]
   cutoff  = [1E-8]
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -92,13 +93,23 @@ let
   # # Sx = expect(ψ, "Sx", sites = 1 : N)
   # zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
 
+  # Check the variance of the energy
+  H2 = inner(H, ψ, H, ψ)
+  E₀ = inner(ψ', H, ψ)
+  variance = H2 - E₀^2
+  @show variance
+
   # Compute energy per bound
   @show number_of_bonds, energy / number_of_bonds
+  @show N, 4 * energy / N
+  @show E₀
   @show tmp_observer.ehistory
   
-  h5open("data/2d_heisenberg_honeycomb_lattice_rings_L$(Nx)W$(Ny).h5", "w") do file
+  h5open("data/2d_heisenberg_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny).h5", "w") do file
     write(file, "psi", ψ)
-    write(file, "E0", energy / number_of_bonds)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
     write(file, "Sz0", Sz₀)
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)
