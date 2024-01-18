@@ -36,7 +36,7 @@ end
 let
   # Set up the lattice parameters
   Nx = 10
-  Ny = 4
+  Ny = 5
   N = Nx * Ny
 
   # Configure the lattice geometery
@@ -52,8 +52,8 @@ let
   
   # honeycomb lattice
   # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
-  # lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
-  lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
+  lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
+  # lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
   number_of_bonds = length(lattice)
   @show number_of_bonds
   @show lattice
@@ -76,7 +76,7 @@ let
   # 1/5/2024
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   nsweeps = 12
-  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 4000]
+  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -105,7 +105,7 @@ let
   @show E₀
   @show tmp_observer.ehistory
   
-  h5open("data/2d_heisenberg_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny).h5", "w") do file
+  h5open("data/2d_heisenberg_honeycomb_lattice_obc_rings_L$(Nx)W$(Ny).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
