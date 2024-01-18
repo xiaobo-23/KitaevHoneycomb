@@ -80,7 +80,7 @@ if __name__ == "__main__":
     print("-" * 100)
     E0, converged_psi, _, measuremnet_data = example_DMRG_heisenberg_xxx_honeycomb(3, 3)
     
-    import pickle
-    with open('2d_heisenberg_honeycomb_L3W3.pkl', 'wb') as file:
-        pickle.dump(measuremnet_data, file)
-        print('Output data has been successfully saved to file.')
+    # import pickle
+    # with open('2d_heisenberg_honeycomb_L3W3.pkl', 'wb') as file:
+    #     pickle.dump(measuremnet_data, file)
+    #     print('Output data has been successfully saved to file.')
