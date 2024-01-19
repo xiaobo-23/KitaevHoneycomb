@@ -6,6 +6,8 @@ using ITensors
 using HDF5
 
 include("src/heisenberg/Honeycomb_Lattice.jl")
+include("src/heisenberg/Entanglement.jl")
+
 
 # Define a custom observer
 mutable struct energyObserver <: AbstractObserver
@@ -35,8 +37,8 @@ end
 
 let
   # Set up the lattice parameters
-  Nx = 10
-  Ny = 5
+  Nx = 6
+  Ny = 3
   N = Nx * Ny
 
   # Configure the lattice geometery
@@ -57,7 +59,7 @@ let
   number_of_bonds = length(lattice)
   @show number_of_bonds
   @show lattice
-
+  
   os = OpSum()
   for b in lattice
     os .+= 0.5, "S+", b.s1, "S-", b.s2
@@ -85,7 +87,7 @@ let
   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, observer = tmp_observer)
   Sz = expect(ψ, "Sz", sites = 1 : N)
   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-
+  
   # Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   # # Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   # energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff)
@@ -99,6 +101,10 @@ let
   variance = H2 - E₀^2
   @show variance
 
+  # Check von Neumann entanglement entropy per bond
+  SvN = entanglement_entropy_bonds(ψ, lattice)
+  @show SvN
+
   # Compute energy per bound
   @show number_of_bonds, energy / number_of_bonds
   @show N, 4 * energy / N
@@ -110,6 +116,7 @@ let
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
     write(file, "E0variance", variance)
+    write(file, "Entropy", SvN)
     write(file, "Sz0", Sz₀)
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)
