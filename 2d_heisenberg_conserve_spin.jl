@@ -37,8 +37,8 @@ end
 
 let
   # Set up the lattice parameters
-  Nx = 6
-  Ny = 3
+  Nx = 32
+  Ny = 8
   N = Nx * Ny
 
   # Configure the lattice geometery
@@ -54,8 +54,9 @@ let
   
   # honeycomb lattice
   # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
-  lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
+  # lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
   # lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
+  lattice = honeycomb_lattice_rings_map_to_1d_chains(Nx, Ny)
   number_of_bonds = length(lattice)
   @show number_of_bonds
   @show lattice
@@ -101,22 +102,23 @@ let
   variance = H2 - E₀^2
   @show variance
 
-  # Check von Neumann entanglement entropy per bond
-  SvN = entanglement_entropy_bonds(ψ, lattice)
-  @show SvN
+  # # 1/22/2024
+  # # Check von Neumann entanglement entropy per bond
+  # SvN = entanglement_entropy_bonds(ψ, lattice)
+  # @show SvN
 
   # Compute energy per bound
   @show number_of_bonds, energy / number_of_bonds
-  @show N, 4 * energy / N
+  @show N, energy / N
   @show E₀
   @show tmp_observer.ehistory
   
-  h5open("data/2d_heisenberg_honeycomb_lattice_obc_rings_L$(Nx)W$(Ny).h5", "w") do file
+  h5open("data/2d_heisenberg_honeycomb_lattice_1d_rings_L$(Nx)W$(Ny).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
     write(file, "E0variance", variance)
-    write(file, "Entropy", SvN)
+    # write(file, "Entropy", SvN)
     write(file, "Sz0", Sz₀)
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)

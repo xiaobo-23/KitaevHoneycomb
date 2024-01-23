@@ -210,7 +210,42 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 		end
 	end
 
-
 	# @show latt
+	return latt
+end
+
+
+# 1/22/2024
+# Turn off interactions on selected bonds and benchmark against the one-dimensional DRMG result
+function honeycomb_lattice_rings_map_to_1d_chains(Nx::Int, Ny::Int)::Lattice
+	"""
+		Using the ring ordering scheme 
+		Nx needs to be an even number
+	"""
+
+	N = Nx * Ny
+	Nbond = N - 1
+	
+	latt = Lattice(undef, Nbond)
+	b = 0
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+		
+		# Use the ring ordering scheme to set up an one-dimensional chain
+		if Ny > 1 && n < N
+			if mod(x, 2) == 1 && x < Nx
+				latt[b += 1] = LatticeBond(n, n + Ny)
+				if y != 1
+					latt[b += 1] = LatticeBond(n, n + Ny - 1)
+				end
+			end
+
+			if mod(x, 2) == 0 && y == Ny
+				latt[b += 1] = LatticeBond(n, n + 1)
+			end
+		end
+	end
+
 	return latt
 end
