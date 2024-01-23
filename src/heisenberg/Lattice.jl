@@ -1,4 +1,4 @@
-## 12/20/2023
+# 12/20/2023
 # Configure a two-dimensional geometries for square and triangular lattices
 
 

@@ -79,10 +79,10 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 		Using the ring ordering scheme
 		Nx needs to be an even number
 	"""
-		yperiodic = yperiodic && (Ny > 2)
-  	N = Nx * Ny
- 		Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
-		@show Nbond
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	@show Nbond
   
   	latt = Lattice(undef, Nbond)
   	b = 0
@@ -155,7 +155,7 @@ function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 				latt[b += 1] = LatticeBond(n, n + (Nx - 1) * Ny)
 			end
 
-			@show x, y, yperiodic, n, n + 2 * Ny - 1
+			# @show x, y, yperiodic, n, n + 2 * Ny - 1
 			# periodic bonds 
 			if mod(x, 2) == 1 && yperiodic && y == 1
 				latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
