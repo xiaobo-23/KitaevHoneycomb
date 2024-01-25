@@ -47,7 +47,7 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the A-phase
   # |Jx| > |Jy| + |Jz| in the B-phase
-  Jx = -3.0
+  Jx = -1.0
   Jy = -1.0
   Jz = -1.0
 
@@ -62,7 +62,7 @@ let
   # Construct the Hamiltonian as an MPO
   # This part explicitly depends on how the lattice is mapped from a 2d honeycomb lattice to a 1d chain
   os = OpSum()
-  # count_bonds = 0
+  count_bonds = 0
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
     tmp_y = mod(b.s1 - 1, Ny) + 1
@@ -71,15 +71,15 @@ let
     
     if mod(tmp_x, 2) == 0
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
-      # @show b.s1, b.s2
-      # count_bonds += 1
+      @show b.s1, b.s2
+      count_bonds += 1
     else
       if (mod(b.s1, 2) == mod(b.s2, 2)) || (mod(b.s1, 2) != mod(b.s2, 2) && tmp_y == 1 && tmp_y_prime == Ny)
-        os .+= -Jx, "Sx", b.s1, "Sx", b.s2
+        os .+= -Jx, "Sy", b.s1, "Sy", b.s2
         # @show b.s1, b.s2
         # count_bonds += 1
       elseif mod(b.s1, 2) != mod(b.s2, 2) && abs(tmp_x - tmp_x_prime) == 1
-        os .+= -Jy, "Sy", b.s1, "Sy", b.s2
+        os .+= -Jy, "Sx", b.s1, "Sx", b.s2
         # @show b.s1, b.s2
         # count_bonds += 1
       end 
@@ -87,11 +87,11 @@ let
 
     if tmp_x == 1 && tmp_x_prime == Nx
       os .+= -Jz, "Sz", b.s2, "Sz", b.s1
-      # @show b.s2, b.s1
-      # count_bonds += 1
+      @show b.s2, b.s1
+      count_bonds += 1
     end
   end
-# @show count_bonds
+  @show count_bonds
 # @show os
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
@@ -133,15 +133,20 @@ let
 
   # 1/24/2024
   # Check the eigenvalue of the plaquette operator
-  orthogonalize!(ψ, 4)
-  plaquette_operator = Vector{String}(["Y", "Z", "X", "Y", "Z", "X"])
+  # orthogonalize!(ψ, 11)
+  normalize!(ψ)
+  plaquette_operator = Vector{String}(["X", "Z", "Y", "X", "Z", "Y"])
   plaquette_operator_imaginary = Vector{String}(["Z", "X", "iY", "iY", "Z", "X"])
   loop_inds = Vector{Int64}([4, 2, 5, 8, 10, 7])
+  loop2_inds = Vector{Int64}([11, 9, 12, 15, 17, 14])
+  loop3_inds = Vector{Int64}([5, 3, 6, 9, 11, 8])
+  loop4_inds = Vector{Int64}([17, 15, 18, 3, 5, 2])
+
   # plaquette_operator = Vector{String}(["σy", "σz", "σx", "σy"])
   # loop_inds = Vector{Int64}([4, 2, 5, 8])
   
   os_w = OpSum()
-  os_w .+= plaquette_operator[1], loop_inds[1], plaquette_operator[2], loop_inds[2], 
+  os_w += plaquette_operator[1], loop_inds[1], plaquette_operator[2], loop_inds[2], 
     plaquette_operator[3], loop_inds[3], plaquette_operator[4], loop_inds[4], 
     plaquette_operator[5], loop_inds[5], plaquette_operator[6], loop_inds[6]
   W = MPO(os_w, sites)
@@ -149,19 +154,48 @@ let
   ψ_updated = W * ψ
   W_eigenvalue_updated = inner(ψ', ψ_updated)
   
-  os_w_imaginary = OpSum()
-  os_w_imaginary .+= plaquette_operator_imaginary[1], loop_inds[1], plaquette_operator_imaginary[2], loop_inds[2], 
-    plaquette_operator_imaginary[3], loop_inds[3], plaquette_operator_imaginary[4], loop_inds[4], 
-    plaquette_operator_imaginary[5], loop_inds[5], plaquette_operator_imaginary[6], loop_inds[6]
-  W_imaginary = MPO(os_w_imaginary, sites)
-  W_eigenvalue_imaginary = inner(ψ', W_imaginary, ψ)
+
+  os_w2 = OpSum()
+  os_w2 .+= plaquette_operator[1], loop2_inds[1], plaquette_operator[2], loop2_inds[2], 
+    plaquette_operator[3], loop2_inds[3], plaquette_operator[4], loop2_inds[4], 
+    plaquette_operator[5], loop2_inds[5], plaquette_operator[6], loop2_inds[6]
+  W2 = MPO(os_w2, sites)
+  W2_eigenvalue = inner(ψ', W2, ψ)
+
+  os_w3 = OpSum()
+  os_w3 .+= plaquette_operator[1], loop3_inds[1], plaquette_operator[2], loop3_inds[2], 
+    plaquette_operator[3], loop3_inds[3], plaquette_operator[4], loop3_inds[4], 
+    plaquette_operator[5], loop3_inds[5], plaquette_operator[6], loop3_inds[6]
+  W3 = MPO(os_w3, sites)
+  W3_eigenvalue = inner(ψ', W3, ψ)
+
+
+  os_w4 = OpSum()
+  os_w4 .+= plaquette_operator[1], loop4_inds[1], plaquette_operator[2], loop4_inds[2], 
+    plaquette_operator[3], loop4_inds[3], plaquette_operator[4], loop4_inds[4], 
+    plaquette_operator[5], loop4_inds[5], plaquette_operator[6], loop4_inds[6]
+  W4 = MPO(os_w4, sites)
+  W4_eigenvalue = inner(ψ', W4, ψ)
+  
+  # os_w_imaginary = OpSum()
+  # os_w_imaginary .+= plaquette_operator_imaginary[1], loop_inds[1], plaquette_operator_imaginary[2], loop_inds[2], 
+  #   plaquette_operator_imaginary[3], loop_inds[3], plaquette_operator_imaginary[4], loop_inds[4], 
+  #   plaquette_operator_imaginary[5], loop_inds[5], plaquette_operator_imaginary[6], loop_inds[6]
+  # W_imaginary = MPO(os_w_imaginary, sites)
+  # W_eigenvalue_imaginary = inner(ψ', W_imaginary, ψ)
   
   # Debug the plaquette operator
   @show os_w
-  @show os_w_imaginary
+  @show os_w2
+  @show os_w3
+  @show os_w4
+  # @show os_w_imaginary
   @show W_eigenvalue
-  @show W_eigenvalue_updated
-  @show W_eigenvalue_imaginary
+  @show W2_eigenvalue
+  @show W3_eigenvalue
+  @show W4_eigenvalue
+  # @show W_eigenvalue_updated
+  # @show W_eigenvalue_imaginary
   @show 4 * xxcorr[4, 2]
 
   # # 1/22/2024
