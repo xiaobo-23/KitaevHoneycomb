@@ -38,8 +38,8 @@ end
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 4
-  Ny_unit_cell = 4
+  Nx_unit_cell = 3
+  Ny_unit_cell = 3
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
   N = Nx * Ny
@@ -50,6 +50,7 @@ let
   Jx = 1.0
   Jy = 1.0
   Jz = 1.0
+  h=0.01
 
   # honeycomb lattice
   # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
@@ -64,7 +65,9 @@ let
   # The following Hamiltonain is based on the rings ordering scheme with PBC in both directions
 
   os = OpSum()
+  lattice_sites = Set{Int64}()
   enumerate_bonds = 0
+  
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
     if mod(tmp_x, 2) == 0
@@ -82,11 +85,31 @@ let
         enumerate_bonds += 1
       end 
     end
+
+    if !in(b.s1, lattice_sites)
+      push!(lattice_sites, b.s1)
+    end
+
+    if !in(b.s2, lattice_sites)
+      push!(lattice_sites, b.s2)
+    end
   end
   @show enumerate_bonds
-  # @show os
+
+ 
+  # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
+  # The magnetic field breaks integrability 
+  @show length(lattice_sites)
+  @show lattice_sites
+  for tmp_site in lattice_sites
+    os .+= h, "Sx", tmp_site
+    os .+= h, "Sy", tmp_site
+    os .+= h, "Sz", tmp_site
+  end
+  @show os
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
+
   
   
   # Initialize wavefunction to a random MPS
@@ -97,7 +120,7 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 12
+  nsweeps = 15
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000, 3000]
   cutoff  = [1E-10]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -146,7 +169,7 @@ let
   
   # # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
   # # normalize!(ψ)
-  # plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
+  # plaquette_operator = Vector{String}(["iY", "X", "Z", "Z", "X", "iY"])
   # loop_inds = Matrix{Int64}(undef, 16, 6)
   # loop_inds[1, :] = [9, 5, 1, 16, 12, 8]
   # loop_inds[2, :] = [10, 6, 2, 13, 9, 5]
@@ -174,7 +197,7 @@ let
       plaquette_operator[3], loop_inds[loop_index, 3], plaquette_operator[4], loop_inds[loop_index, 4], 
       plaquette_operator[5], loop_inds[loop_index, 5], plaquette_operator[6], loop_inds[loop_index, 6]
     W = MPO(os_w, sites)
-    W_operator_eigenvalues[loop_index] = inner(ψ', W, ψ)
+    W_operator_eigenvalues[loop_index] = real(inner(ψ', W, ψ))
     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
   end
 
