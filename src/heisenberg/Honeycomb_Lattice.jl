@@ -152,11 +152,11 @@ function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 
 			# periodic bonds along the x direction
 			if mod(x, 2) == 1 && x == 1
-				latt[b += 1] = LatticeBond(n, n + (Nx - 1) * Ny)
+				# latt[b += 1] = LatticeBond(n, n + (Nx - 1) * Ny)
+				latt[b += 1] = LatticeBond(n + (Nx - 1) * Ny, n)
 			end
 
-			# @show x, y, yperiodic, n, n + 2 * Ny - 1
-			# periodic bonds 
+			# periodic bonds along the y direction
 			if mod(x, 2) == 1 && yperiodic && y == 1
 				latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
 			end
