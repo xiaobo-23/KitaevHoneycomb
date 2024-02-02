@@ -47,10 +47,10 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = 1.0
-  Jy = 1.0
-  Jz = 1.0
-  h=0.01
+  Jx = -1.0
+  Jy = -1.0
+  Jz = -1.0
+  h = 0.0
 
   # honeycomb lattice
   # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
@@ -63,7 +63,6 @@ let
   # Construct the Hamiltonian using the OpSum system
   # How the interactions are set up depends on the ordering scheme
   # The following Hamiltonain is based on the rings ordering scheme with PBC in both directions
-
   os = OpSum()
   lattice_sites = Set{Int64}()
   enumerate_bonds = 0
@@ -96,21 +95,22 @@ let
   end
   @show enumerate_bonds
 
- 
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
   @show length(lattice_sites)
   @show lattice_sites
-  for tmp_site in lattice_sites
-    os .+= h, "Sx", tmp_site
-    os .+= h, "Sy", tmp_site
-    os .+= h, "Sz", tmp_site
+  if h > 1e-8
+    for tmp_site in lattice_sites
+      os .+= h, "Sx", tmp_site
+      os .+= h, "Sy", tmp_site
+      os .+= h, "Sz", tmp_site
+    end
   end
   @show os
+ 
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
 
-  
   
   # Initialize wavefunction to a random MPS
   # of bond-dimension 10 with same quantum 
@@ -166,6 +166,26 @@ let
   W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
   # W_operator_im = Vector{Float64}(undef, size(loop_inds)[1])
 
+
+  # Compute the eigenvalues of the loop operator in the x-direction
+  loop_operator_x = Vector{String}(["Y", "Y", "Y", "Y", "Y", "Y"])
+  loop_x_inds = Matrix{Int64}(undef, 3, 6)
+  loop_x_inds[1, :] = [3, 6, 9, 12, 15, 18]
+  loop_x_inds[2, :] = [2, 5, 8, 11, 14, 17]
+  loop_x_inds[3, :] = [1, 4, 7, 10, 13, 16]
+  @show size(loop_x_inds)[1]  
+  loop_operator_x_eigenvalues = Vector{Float64}(undef, size(loop_x_inds)[1])
+
+
+  # Compute the eigenvalues of the loop operator in y-direction
+  loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z"])
+  loop_y_inds = Matrix{Int64}(undef, 3, 6)
+  loop_y_inds[1, :] = [1, 4, 2, 5, 3, 6]
+  loop_y_inds[2, :] = [7, 10, 8, 11, 9, 12]
+  loop_y_inds[3, :] = [13, 16, 14, 17, 15, 18]
+  @show size(loop_y_inds)[1]  
+  loop_operator_y_eigenvalues = Vector{Float64}(undef, size(loop_y_inds)[1])
+
   
   # # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
   # # normalize!(ψ)
@@ -191,6 +211,7 @@ let
   # W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
 
 
+  # Compute the eigenvalues of the plaquettr operator
   for loop_index in 1 : size(loop_inds)[1]
     os_w = OpSum()
     os_w += plaquette_operator[1], loop_inds[loop_index, 1], plaquette_operator[2], loop_inds[loop_index, 2], 
@@ -198,6 +219,36 @@ let
       plaquette_operator[5], loop_inds[loop_index, 5], plaquette_operator[6], loop_inds[loop_index, 6]
     W = MPO(os_w, sites)
     W_operator_eigenvalues[loop_index] = real(inner(ψ', W, ψ))
+    # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  end
+
+
+  # Compute the eigenvalues of the loop operators in the x-direction
+  for loop_index in 1 : size(loop_x_inds)[1]
+    os_wl = OpSum()
+    os_wl += loop_operator_x[1], loop_x_inds[loop_index, 1], 
+      loop_operator_x[2], loop_x_inds[loop_index, 2], 
+      loop_operator_x[3], loop_x_inds[loop_index, 3], 
+      loop_operator_x[4], loop_x_inds[loop_index, 4], 
+      loop_operator_x[5], loop_x_inds[loop_index, 5], 
+      loop_operator_x[6], loop_x_inds[loop_index, 6]
+    Wl = MPO(os_wl, sites)
+    loop_operator_x_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
+    # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  end
+
+  
+  # Compute the eigenvalues of the loop operators in the x-direction
+  for loop_index in 1 : size(loop_y_inds)[1]
+    os_wl = OpSum()
+    os_wl += loop_operator_y[1], loop_y_inds[loop_index, 1], 
+      loop_operator_y[2], loop_y_inds[loop_index, 2], 
+      loop_operator_y[3], loop_y_inds[loop_index, 3], 
+      loop_operator_y[4], loop_y_inds[loop_index, 4], 
+      loop_operator_y[5], loop_y_inds[loop_index, 5], 
+      loop_operator_y[6], loop_y_inds[loop_index, 6]
+    Wl = MPO(os_wl, sites)
+    loop_operator_y_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
   end
 
@@ -216,7 +267,8 @@ let
   println("")
   println("Eigenvalues of the plaquette operator:")
   @show W_operator_eigenvalues
-  # @show -W_operator_im
+  @show loop_operator_x_eigenvalues
+  @show loop_operator_y_eigenvalues
   println("")
 
   println("")
@@ -240,6 +292,8 @@ let
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)
     write(file, "plaquette", W_operator_eigenvalues)
+    write(file, "Wlx", loop_operator_x_eigenvalues)
+    write(file, "Wly", loop_operator_y_eigenvalues)
   end
 
   return
