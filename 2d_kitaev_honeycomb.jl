@@ -38,8 +38,8 @@ end
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 3
-  Ny_unit_cell = 3
+  Nx_unit_cell = 4
+  Ny_unit_cell = 4
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
   N = Nx * Ny
@@ -50,10 +50,10 @@ let
   Jx = 1.0
   Jy = 1.0
   Jz = 1.0
-  h = 0.0
+  h=0.0
 
   # honeycomb lattice
-  x_direction_periodic = true
+  x_direction_periodic = false
   if x_direction_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
   else
@@ -70,13 +70,12 @@ let
   os = OpSum()
   lattice_sites = Set{Int64}()
   enumerate_bonds = 0
-  
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
     if mod(tmp_x, 2) == 0
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
-      # @show b.s1, b.s2
-      # enumerate_bonds += 1
+      @show b.s1, b.s2
+      enumerate_bonds += 1
     else
       if b.s2 == b.s1 + Ny
         os .+= -Jx, "Sx", b.s1, "Sx", b.s2
@@ -84,8 +83,8 @@ let
         # enumerate_bonds += 1
       else
         os .+= -Jy, "Sy", b.s1, "Sy", b.s2
-        @show b.s1, b.s2
-        enumerate_bonds += 1
+        # @show b.s1, b.s2
+        # enumerate_bonds += 1
       end 
     end
 
@@ -99,6 +98,7 @@ let
   end
   @show enumerate_bonds
 
+  
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
   @show length(lattice_sites)
@@ -110,7 +110,7 @@ let
       os .+= h, "Sz", tmp_site
     end
   end
-  @show os
+  # @show os
  
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
@@ -124,9 +124,9 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 15
-  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000, 3000]
-  cutoff  = [1E-10]
+  nsweeps = 12
+  maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
+  cutoff  = [1E-8]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -151,49 +151,49 @@ let
   variance = H2 - E₀^2
  
 
-  # Compute the eigenvalues of the plaquette operator and its avaverage
-  # On the three-by-three lattice, there are nine plaquettes in total
-  # normalize!(ψ)
-  # plaquette_operator_im = Vector{String}(["X", "Y", "Z", "Z", "Y", "X"])
-  plaquette_operator = Vector{String}(["iY", "X", "Z", "Z", "X", "iY"])
-  loop_inds = Matrix{Int64}(undef, 9, 6)
-  loop_inds[1, :] = [5, 8, 10, 2, 4, 7]
-  loop_inds[2, :] = [6, 9, 11, 3, 5, 8]
-  loop_inds[3, :] = [4, 7, 12, 1, 6, 9]
-  loop_inds[4, :] = [11, 14, 16, 8, 10, 13]
-  loop_inds[5, :] = [12, 15, 17, 9, 11, 14]
-  loop_inds[6, :] = [10, 13, 18, 7, 12, 15]
-  loop_inds[7, :] = [17, 2, 4, 14, 16, 1]
-  loop_inds[8, :] = [18, 3, 5, 15, 17, 2]
-  loop_inds[9, :] = [16, 1, 6, 13, 18, 3]
-  @show size(loop_inds)[1]
-  W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
-  # W_operator_im = Vector{Float64}(undef, size(loop_inds)[1])
+  # # Compute the eigenvalues of the plaquette operator and its avaverage
+  # # On the three-by-three lattice, there are nine plaquettes in total
+  # # normalize!(ψ)
+  # # plaquette_operator_im = Vector{String}(["X", "Y", "Z", "Z", "Y", "X"])
+  # plaquette_operator = Vector{String}(["iY", "X", "Z", "Z", "X", "iY"])
+  # loop_inds = Matrix{Int64}(undef, 9, 6)
+  # loop_inds[1, :] = [5, 8, 10, 2, 4, 7]
+  # loop_inds[2, :] = [6, 9, 11, 3, 5, 8]
+  # loop_inds[3, :] = [4, 7, 12, 1, 6, 9]
+  # loop_inds[4, :] = [11, 14, 16, 8, 10, 13]
+  # loop_inds[5, :] = [12, 15, 17, 9, 11, 14]
+  # loop_inds[6, :] = [10, 13, 18, 7, 12, 15]
+  # loop_inds[7, :] = [17, 2, 4, 14, 16, 1]
+  # loop_inds[8, :] = [18, 3, 5, 15, 17, 2]
+  # loop_inds[9, :] = [16, 1, 6, 13, 18, 3]
+  # @show size(loop_inds)[1]
+  # W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
+  # # W_operator_im = Vector{Float64}(undef, size(loop_inds)[1])
 
 
-  # Compute the eigenvalues of the loop operator in the x-direction
-  if x_direction_periodic
-    loop_operator_x = Vector{String}(["Y", "Y", "Y", "Y", "Y", "Y"])
-    loop_x_inds = Matrix{Int64}(undef, 3, 6)
-    loop_x_inds[1, :] = [3, 6, 9, 12, 15, 18]
-    loop_x_inds[2, :] = [2, 5, 8, 11, 14, 17]
-    loop_x_inds[3, :] = [1, 4, 7, 10, 13, 16]
-    @show size(loop_x_inds)[1]  
-    loop_operator_x_eigenvalues = Vector{Float64}(undef, size(loop_x_inds)[1])
-  end
+  # # Compute the eigenvalues of the loop operator in the x-direction
+  # if x_direction_periodic
+  #   loop_operator_x = Vector{String}(["Y", "Y", "Y", "Y", "Y", "Y"])
+  #   loop_x_inds = Matrix{Int64}(undef, 3, 6)
+  #   loop_x_inds[1, :] = [3, 6, 9, 12, 15, 18]
+  #   loop_x_inds[2, :] = [2, 5, 8, 11, 14, 17]
+  #   loop_x_inds[3, :] = [1, 4, 7, 10, 13, 16]
+  #   @show size(loop_x_inds)[1]  
+  #   loop_operator_x_eigenvalues = Vector{Float64}(undef, size(loop_x_inds)[1])
+  # end
 
 
-  # Compute the eigenvalues of the loop operator in y-direction
-  loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z"])
-  loop_y_inds = Matrix{Int64}(undef, 3, 6)
-  loop_y_inds[1, :] = [1, 4, 2, 5, 3, 6]
-  loop_y_inds[2, :] = [7, 10, 8, 11, 9, 12]
-  loop_y_inds[3, :] = [13, 16, 14, 17, 15, 18]
-  @show size(loop_y_inds)[1]  
-  loop_operator_y_eigenvalues = Vector{Float64}(undef, size(loop_y_inds)[1])
+  # # Compute the eigenvalues of the loop operator in y-direction
+  # loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z"])
+  # loop_y_inds = Matrix{Int64}(undef, 3, 6)
+  # loop_y_inds[1, :] = [1, 4, 2, 5, 3, 6]
+  # loop_y_inds[2, :] = [7, 10, 8, 11, 9, 12]
+  # loop_y_inds[3, :] = [13, 16, 14, 17, 15, 18]
+  # @show size(loop_y_inds)[1]  
+  # loop_operator_y_eigenvalues = Vector{Float64}(undef, size(loop_y_inds)[1])
 
   
-  # # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
+  # # On a four-by-four lattice with PBC in both directions, compute the eigenvalues of the plaquette operator in all 16 plaquettes
   # # normalize!(ψ)
   # plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
   # loop_inds = Matrix{Int64}(undef, 16, 6)
@@ -217,6 +217,37 @@ let
   # W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
 
 
+  # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
+  # normalize!(ψ)
+  plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
+  loop_inds = Matrix{Int64}(undef, 12, 6)
+  loop_inds[1, :] = [9, 5, 1, 16, 12, 8]
+  loop_inds[2, :] = [10, 6, 2, 13, 9, 5]
+  loop_inds[3, :] = [11, 7, 3, 14, 10, 6]
+  loop_inds[4, :] = [12, 8, 4, 15, 11, 7]
+  loop_inds[5, :] = [17, 13, 9, 24, 20, 16]
+  loop_inds[6, :] = [18, 14, 10, 21, 17, 13]
+  loop_inds[7, :] = [19, 15, 11, 22, 18, 14]
+  loop_inds[8, :] = [20, 16, 12, 23, 19, 15]
+  loop_inds[9, :] = [25, 21, 17, 32, 28, 24]
+  loop_inds[10, :] = [26, 22, 18, 29, 25, 21]
+  loop_inds[11, :] = [27, 23, 19, 30, 26, 22]
+  loop_inds[12, :] = [28, 24, 20, 31, 27, 23]
+  @show size(loop_inds)[1]
+  W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
+
+
+  # Compute the eigenvalues of the loop operator in y-direction
+  loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z", "Z", "Z"])
+  loop_y_inds = Matrix{Int64}(undef, 4, 8)
+  loop_y_inds[1, :] = [1, 5, 2, 6, 3, 7, 4, 8]
+  loop_y_inds[2, :] = [9, 13, 10, 14, 11, 15, 12, 16]
+  loop_y_inds[3, :] = [17, 21, 18, 22, 19, 23, 20, 24]
+  loop_y_inds[4, :] = [25, 29, 26, 30, 27, 31, 28, 32]
+  @show size(loop_y_inds)[1]  
+  loop_operator_y_eigenvalues = Vector{Float64}(undef, size(loop_y_inds)[1])
+
+
   # Compute the eigenvalues of the plaquettr operator
   for loop_index in 1 : size(loop_inds)[1]
     os_w = OpSum()
@@ -229,32 +260,35 @@ let
   end
 
 
-  # Compute the eigenvalues of the loop operators in the x-direction
-  if x_direction_periodic
-    for loop_index in 1 : size(loop_x_inds)[1]
-      os_wl = OpSum()
-      os_wl += loop_operator_x[1], loop_x_inds[loop_index, 1], 
-        loop_operator_x[2], loop_x_inds[loop_index, 2], 
-        loop_operator_x[3], loop_x_inds[loop_index, 3], 
-        loop_operator_x[4], loop_x_inds[loop_index, 4], 
-        loop_operator_x[5], loop_x_inds[loop_index, 5], 
-        loop_operator_x[6], loop_x_inds[loop_index, 6]
-      Wl = MPO(os_wl, sites)
-      loop_operator_x_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
-      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-    end
-  end
+  # # Compute the eigenvalues of the loop operators in the x-direction
+  # if x_direction_periodic
+  #   for loop_index in 1 : size(loop_x_inds)[1]
+  #     os_wl = OpSum()
+  #     os_wl += loop_operator_x[1], loop_x_inds[loop_index, 1], 
+  #       loop_operator_x[2], loop_x_inds[loop_index, 2], 
+  #       loop_operator_x[3], loop_x_inds[loop_index, 3], 
+  #       loop_operator_x[4], loop_x_inds[loop_index, 4], 
+  #       loop_operator_x[5], loop_x_inds[loop_index, 5], 
+  #       loop_operator_x[6], loop_x_inds[loop_index, 6]
+  #     Wl = MPO(os_wl, sites)
+  #     loop_operator_x_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
+  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  #   end
+  # end
 
   
-  # Compute the eigenvalues of the loop operators in the x-direction
+  # Compute the eigenvalues of the loop operators in the y direction
   for loop_index in 1 : size(loop_y_inds)[1]
     os_wl = OpSum()
+    @show loop_y_inds[loop_index, :]
     os_wl += loop_operator_y[1], loop_y_inds[loop_index, 1], 
       loop_operator_y[2], loop_y_inds[loop_index, 2], 
       loop_operator_y[3], loop_y_inds[loop_index, 3], 
       loop_operator_y[4], loop_y_inds[loop_index, 4], 
       loop_operator_y[5], loop_y_inds[loop_index, 5], 
-      loop_operator_y[6], loop_y_inds[loop_index, 6]
+      loop_operator_y[6], loop_y_inds[loop_index, 6],
+      loop_operator_y[7], loop_y_inds[loop_index, 7],
+      loop_operator_y[8], loop_y_inds[loop_index, 8]
     Wl = MPO(os_wl, sites)
     loop_operator_y_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
@@ -266,7 +300,6 @@ let
   # SvN = entanglement_entropy_bonds(ψ, lattice)
   # @show SvN
 
-
   # Print out several quantities of interest including the energy per site etc.
   @show number_of_bonds, energy / number_of_bonds
   @show N, energy / N
@@ -275,7 +308,9 @@ let
   println("")
   println("Eigenvalues of the plaquette operator:")
   @show W_operator_eigenvalues
-  @show loop_operator_x_eigenvalues
+  if x_direction_periodic
+    @show loop_operator_x_eigenvalues
+  end
   @show loop_operator_y_eigenvalues
   println("")
 
@@ -283,26 +318,28 @@ let
   println("Variance of the energy is $variance")
   println("")
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "plaquette", W_operator_eigenvalues)
-  #   write(file, "Wlx", loop_operator_x_eigenvalues)
-  #   write(file, "Wly", loop_operator_y_eigenvalues)
-  # end
+  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM.h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "plaquette", W_operator_eigenvalues)
+    if x_direction_periodic
+      write(file, "Wlx", loop_operator_x_eigenvalues)
+    end
+    write(file, "Wly", loop_operator_y_eigenvalues)
+  end
 
   return
 end
