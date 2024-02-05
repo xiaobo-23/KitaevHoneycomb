@@ -47,15 +47,19 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = -1.0
-  Jy = -1.0
-  Jz = -1.0
+  Jx = 1.0
+  Jy = 1.0
+  Jz = 1.0
   h = 0.0
 
   # honeycomb lattice
+  x_direction_periodic = true
+  if x_direction_periodic
+    lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
+  else
+    lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
+  end
   # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
-  # lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
-  lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
   number_of_bonds = length(lattice)
   @show number_of_bonds
   @show lattice
@@ -168,13 +172,15 @@ let
 
 
   # Compute the eigenvalues of the loop operator in the x-direction
-  loop_operator_x = Vector{String}(["Y", "Y", "Y", "Y", "Y", "Y"])
-  loop_x_inds = Matrix{Int64}(undef, 3, 6)
-  loop_x_inds[1, :] = [3, 6, 9, 12, 15, 18]
-  loop_x_inds[2, :] = [2, 5, 8, 11, 14, 17]
-  loop_x_inds[3, :] = [1, 4, 7, 10, 13, 16]
-  @show size(loop_x_inds)[1]  
-  loop_operator_x_eigenvalues = Vector{Float64}(undef, size(loop_x_inds)[1])
+  if x_direction_periodic
+    loop_operator_x = Vector{String}(["Y", "Y", "Y", "Y", "Y", "Y"])
+    loop_x_inds = Matrix{Int64}(undef, 3, 6)
+    loop_x_inds[1, :] = [3, 6, 9, 12, 15, 18]
+    loop_x_inds[2, :] = [2, 5, 8, 11, 14, 17]
+    loop_x_inds[3, :] = [1, 4, 7, 10, 13, 16]
+    @show size(loop_x_inds)[1]  
+    loop_operator_x_eigenvalues = Vector{Float64}(undef, size(loop_x_inds)[1])
+  end
 
 
   # Compute the eigenvalues of the loop operator in y-direction
@@ -189,7 +195,7 @@ let
   
   # # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
   # # normalize!(ψ)
-  # plaquette_operator = Vector{String}(["iY", "X", "Z", "Z", "X", "iY"])
+  # plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
   # loop_inds = Matrix{Int64}(undef, 16, 6)
   # loop_inds[1, :] = [9, 5, 1, 16, 12, 8]
   # loop_inds[2, :] = [10, 6, 2, 13, 9, 5]
@@ -224,17 +230,19 @@ let
 
 
   # Compute the eigenvalues of the loop operators in the x-direction
-  for loop_index in 1 : size(loop_x_inds)[1]
-    os_wl = OpSum()
-    os_wl += loop_operator_x[1], loop_x_inds[loop_index, 1], 
-      loop_operator_x[2], loop_x_inds[loop_index, 2], 
-      loop_operator_x[3], loop_x_inds[loop_index, 3], 
-      loop_operator_x[4], loop_x_inds[loop_index, 4], 
-      loop_operator_x[5], loop_x_inds[loop_index, 5], 
-      loop_operator_x[6], loop_x_inds[loop_index, 6]
-    Wl = MPO(os_wl, sites)
-    loop_operator_x_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
-    # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  if x_direction_periodic
+    for loop_index in 1 : size(loop_x_inds)[1]
+      os_wl = OpSum()
+      os_wl += loop_operator_x[1], loop_x_inds[loop_index, 1], 
+        loop_operator_x[2], loop_x_inds[loop_index, 2], 
+        loop_operator_x[3], loop_x_inds[loop_index, 3], 
+        loop_operator_x[4], loop_x_inds[loop_index, 4], 
+        loop_operator_x[5], loop_x_inds[loop_index, 5], 
+        loop_operator_x[6], loop_x_inds[loop_index, 6]
+      Wl = MPO(os_wl, sites)
+      loop_operator_x_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
+      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+    end
   end
 
   
@@ -275,26 +283,26 @@ let
   println("Variance of the energy is $variance")
   println("")
   
-  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM.h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", tmp_observer.ehistory)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    write(file, "plaquette", W_operator_eigenvalues)
-    write(file, "Wlx", loop_operator_x_eigenvalues)
-    write(file, "Wly", loop_operator_y_eigenvalues)
-  end
+  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM.h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", tmp_observer.ehistory)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "plaquette", W_operator_eigenvalues)
+  #   write(file, "Wlx", loop_operator_x_eigenvalues)
+  #   write(file, "Wly", loop_operator_y_eigenvalues)
+  # end
 
   return
 end
