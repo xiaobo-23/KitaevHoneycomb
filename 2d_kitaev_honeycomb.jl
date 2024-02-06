@@ -5,8 +5,10 @@
 using ITensors
 using HDF5
 
-include("src/heisenberg/Honeycomb_Lattice.jl")
-include("src/heisenberg/Entanglement.jl")
+include("src/kitaev_heisenberg/Honeycomb_Lattice.jl")
+include("src/kitaev_heisenberg/Entanglement.jl")
+include("src/kitaev_heisenberg/TopologicalLoops.jl")
+
 
 
 # Define a custom observer
@@ -38,7 +40,7 @@ end
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 4
+  Nx_unit_cell = 8
   Ny_unit_cell = 4
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
@@ -124,7 +126,7 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 12
+  nsweeps = 1
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
   cutoff  = [1E-8]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -219,36 +221,15 @@ let
 
   # On a four-by-four lattice, compute the eigenvalues of the plaquette operator in all 16 plaquettes
   # normalize!(ψ)
-  plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
-  loop_inds = Matrix{Int64}(undef, 12, 6)
-  loop_inds[1, :] = [9, 5, 1, 16, 12, 8]
-  loop_inds[2, :] = [10, 6, 2, 13, 9, 5]
-  loop_inds[3, :] = [11, 7, 3, 14, 10, 6]
-  loop_inds[4, :] = [12, 8, 4, 15, 11, 7]
-  loop_inds[5, :] = [17, 13, 9, 24, 20, 16]
-  loop_inds[6, :] = [18, 14, 10, 21, 17, 13]
-  loop_inds[7, :] = [19, 15, 11, 22, 18, 14]
-  loop_inds[8, :] = [20, 16, 12, 23, 19, 15]
-  loop_inds[9, :] = [25, 21, 17, 32, 28, 24]
-  loop_inds[10, :] = [26, 22, 18, 29, 25, 21]
-  loop_inds[11, :] = [27, 23, 19, 30, 26, 22]
-  loop_inds[12, :] = [28, 24, 20, 31, 27, 23]
-  @show size(loop_inds)[1]
+  # plaquette_operator = Vector{String}(["X", "iY", "Z", "Z", "iY", "X"])
+  plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
+  loop_inds = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  for index in 1 : size(loop_inds)[1]
+    @show loop_inds[index, :]
+  end
   W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
-
-
-  # Compute the eigenvalues of the loop operator in y-direction
-  loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z", "Z", "Z"])
-  loop_y_inds = Matrix{Int64}(undef, 4, 8)
-  loop_y_inds[1, :] = [1, 5, 2, 6, 3, 7, 4, 8]
-  loop_y_inds[2, :] = [9, 13, 10, 14, 11, 15, 12, 16]
-  loop_y_inds[3, :] = [17, 21, 18, 22, 19, 23, 20, 24]
-  loop_y_inds[4, :] = [25, 29, 26, 30, 27, 31, 28, 32]
-  @show size(loop_y_inds)[1]  
-  loop_operator_y_eigenvalues = Vector{Float64}(undef, size(loop_y_inds)[1])
-
-
-  # Compute the eigenvalues of the plaquettr operator
+  
+  # Compute the eigenvalues of the plaquette operator
   for loop_index in 1 : size(loop_inds)[1]
     os_w = OpSum()
     os_w += plaquette_operator[1], loop_inds[loop_index, 1], plaquette_operator[2], loop_inds[loop_index, 2], 
@@ -258,6 +239,51 @@ let
     W_operator_eigenvalues[loop_index] = real(inner(ψ', W, ψ))
     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
   end
+  
+  # KEEP THIS FOR REFERENCE
+  # loop_inds = Matrix{Int64}(undef, 12, 6)
+  # loop_inds[1, :] = [9, 5, 1, 16, 12, 8]
+  # loop_inds[2, :] = [10, 6, 2, 13, 9, 5]
+  # loop_inds[3, :] = [11, 7, 3, 14, 10, 6]
+  # loop_inds[4, :] = [12, 8, 4, 15, 11, 7]
+  # loop_inds[5, :] = [17, 13, 9, 24, 20, 16]
+  # loop_inds[6, :] = [18, 14, 10, 21, 17, 13]
+  # loop_inds[7, :] = [19, 15, 11, 22, 18, 14]
+  # loop_inds[8, :] = [20, 16, 12, 23, 19, 15]
+  # loop_inds[9, :] = [25, 21, 17, 32, 28, 24]
+  # loop_inds[10, :] = [26, 22, 18, 29, 25, 21]
+  # loop_inds[11, :] = [27, 23, 19, 30, 26, 22]
+  # loop_inds[12, :] = [28, 24, 20, 31, 27, 23]
+
+
+  # Construct the loop operators in the y direction
+  # loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z", "Z", "Z"])
+  loop_operator_y = Vector{String}([])
+  for index in 1 : 2 * Ny
+    push!(loop_operator_y, "Z")
+  end
+  @show loop_operator_y
+
+  # Construct the loop indices in the y direction
+  y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
+  y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
+
+  # Compute eigenvalues of the loop operators in the y direction
+  for loop_index in 1 : size(y_inds)[1]
+    # @show y_inds[loop_index, :]
+    os_wl = OpSum()
+    os_wl += loop_operator_y[1], y_inds[loop_index, 1], 
+      loop_operator_y[2], y_inds[loop_index, 2], 
+      loop_operator_y[3], y_inds[loop_index, 3], 
+      loop_operator_y[4], y_inds[loop_index, 4], 
+      loop_operator_y[5], y_inds[loop_index, 5], 
+      loop_operator_y[6], y_inds[loop_index, 6],
+      loop_operator_y[7], y_inds[loop_index, 7],
+      loop_operator_y[8], y_inds[loop_index, 8]
+    Wl = MPO(os_wl, sites)
+    y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
+  end
+
 
 
   # # Compute the eigenvalues of the loop operators in the x-direction
@@ -276,29 +302,12 @@ let
   #   end
   # end
 
-  
-  # Compute the eigenvalues of the loop operators in the y direction
-  for loop_index in 1 : size(loop_y_inds)[1]
-    os_wl = OpSum()
-    @show loop_y_inds[loop_index, :]
-    os_wl += loop_operator_y[1], loop_y_inds[loop_index, 1], 
-      loop_operator_y[2], loop_y_inds[loop_index, 2], 
-      loop_operator_y[3], loop_y_inds[loop_index, 3], 
-      loop_operator_y[4], loop_y_inds[loop_index, 4], 
-      loop_operator_y[5], loop_y_inds[loop_index, 5], 
-      loop_operator_y[6], loop_y_inds[loop_index, 6],
-      loop_operator_y[7], loop_y_inds[loop_index, 7],
-      loop_operator_y[8], loop_y_inds[loop_index, 8]
-    Wl = MPO(os_wl, sites)
-    loop_operator_y_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
-    # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-  end
 
+  # # # Compute the von Neumann entanglement Entropy
+  # # # TO-DO: Fix the bonds that are cut to compute the entanglement entropy
+  # # SvN = entanglement_entropy_bonds(ψ, lattice)
+  # # @show SvN
 
-  # # Compute the von Neumann entanglement Entropy
-  # # TO-DO: Fix the bonds that are cut to compute the entanglement entropy
-  # SvN = entanglement_entropy_bonds(ψ, lattice)
-  # @show SvN
 
   # Print out several quantities of interest including the energy per site etc.
   @show number_of_bonds, energy / number_of_bonds
@@ -311,14 +320,14 @@ let
   if x_direction_periodic
     @show loop_operator_x_eigenvalues
   end
-  @show loop_operator_y_eigenvalues
+  @show y_loop_eigenvalues
   println("")
 
   println("")
   println("Variance of the energy is $variance")
   println("")
   
-  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM.h5", "w") do file
+  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
@@ -338,7 +347,7 @@ let
     if x_direction_periodic
       write(file, "Wlx", loop_operator_x_eigenvalues)
     end
-    write(file, "Wly", loop_operator_y_eigenvalues)
+    write(file, "Wly", y_loop_eigenvalues)
   end
 
   return
