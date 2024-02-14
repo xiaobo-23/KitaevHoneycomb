@@ -1,0 +1,28 @@
+#!/bin/bash
+
+mkdir data
+
+for field in $(seq 0.0  0.002  0.025)
+do 
+    mkdir h$field
+    cp 2d_kitaev_honeycomb_vacancy.jl h$field/2d_kitaev_honeycomb_vacancy.jl
+    
+    cd h$field
+        # Linux version
+        sed -i "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb_vacancy.jl
+        
+        # # # MacOS version
+        # sed -i "" "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb.jl
+    cd ..  
+done
+
+# Generate the input file to use disBatch
+python3 Generate_disBatch_Input_File.py 
+    
+# Job submission on rusty
+sbatch -n 26 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
+
+# sbatch -n 250 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev2
+
+# # # Job submission on popeye
+# # sbatch -n 500 -c 4 -t 7-0:0:0 -p ccq --constraint=cascadelake disBatch kitaev

@@ -1,14 +1,12 @@
-# 1/23/2024
-# Simulate the 2d Kitaev model on a honeycomb lattice
+# Simulate the 2d Kitaev model with Zeeman fields & vacancies on a honeycomb lattice
 
 # using Pkg
 using ITensors
 using HDF5
 
-include("src/kitaev_heisenberg/Honeycomb_Lattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
-
+include("../honeycomb_lattice.jl")
+include("../entanglement.jl")
+include("../TopologicalLoops.jl")
 
 
 # Define a custom observer
@@ -78,9 +76,9 @@ let
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
     if b.s1 == site1_to_delete || b.s2 == site1_to_delete || b.s1 == site2_to_delete || b.s2 == site2_to_delete
-      coefficient_Jx = 0.01 * Jx
-      coefficient_Jy = 0.01 * Jy
-      coefficient_Jz = 0.01 * Jz
+      coefficient_Jx = 0.001 * Jx
+      coefficient_Jy = 0.001 * Jy
+      coefficient_Jz = 0.001 * Jz
     else
       coefficient_Jx = Jx
       coefficient_Jy = Jy
@@ -140,13 +138,13 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 1
+  nsweeps = 20
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
   cutoff  = [1E-8]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
-  
+
   # Run DMRG and measure the energy, one-point functions, and two-point functions
   tmp_observer = energyObserver()
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
@@ -325,10 +323,10 @@ let
 
   # Compute the eigenvalue of the order parameter near the second vacancy
   order_index2 = Matrix{Int64}(undef, 1, 12)
-  order_index2[1, :] = [63, 60, 64, 86, 71, 75, 78, 74, 70, 66, 62, 59]
+  order_index2[1, :] = [63, 60, 64, 68, 71, 75, 78, 74, 70, 66, 62, 59]
   order_parameter2 = Vector{Float64}(undef, size(order_index2)[1])
 
-  @show size(order_index2)[1]
+  @show size(order_parameter_inds)[1]
   for index in 1 : size(order_index2)[1]
     os_parameter = OpSum()
     os_parameter += order_parameter_loop[1], order_index2[index, 1], 
@@ -402,30 +400,30 @@ let
   println("Variance of the energy is $variance")
   println("")
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "plaquette", W_operator_eigenvalues)
-  #   if x_direction_periodic
-  #     write(file, "Wlx", loop_operator_x_eigenvalues)
-  #   end
-  #   write(file, "Wly", y_loop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  #   write(file, "OrderParameter2", order_parameter2)
-  # end
+  h5open("../data/2d_kitaev_AFM_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "plaquette", W_operator_eigenvalues)
+    if x_direction_periodic
+      write(file, "Wlx", loop_operator_x_eigenvalues)
+    end
+    write(file, "Wly", y_loop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+    write(file, "OrderParameter2", order_parameter2)
+  end
 
   return
 end

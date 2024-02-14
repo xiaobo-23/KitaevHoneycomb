@@ -5,9 +5,9 @@
 using ITensors
 using HDF5
 
-include("src/kitaev_heisenberg/Honeycomb_Lattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
+include("../honeycomb_lattice.jl")
+include("../entanglement.jl")
+include("../TopologicalLoops.jl")
 
 
 
@@ -40,7 +40,7 @@ end
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 12
+  Nx_unit_cell = 16
   Ny_unit_cell = 4
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
@@ -49,9 +49,10 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx=Jy=Jz=1.0
+  Jx = 1.0
+  Jy = 1.0
+  Jz = 1.0
   h=0.0
-  @show Jx, Jy, Jz, h
 
   # honeycomb lattice
   x_direction_periodic = false
@@ -65,10 +66,6 @@ let
   @show number_of_bonds
   @show lattice
   
-  # Select the site where the vacancy is put into the system
-  site1_to_delete = 35
-  site2_to_delete = 67
-
   # Construct the Hamiltonian using the OpSum system
   # How the interactions are set up depends on the ordering scheme
   # The following Hamiltonain is based on the rings ordering scheme with PBC in both directions
@@ -77,28 +74,17 @@ let
   enumerate_bonds = 0
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
-    if b.s1 == site1_to_delete || b.s2 == site1_to_delete || b.s1 == site2_to_delete || b.s2 == site2_to_delete
-      coefficient_Jx = 0.01 * Jx
-      coefficient_Jy = 0.01 * Jy
-      coefficient_Jz = 0.01 * Jz
-    else
-      coefficient_Jx = Jx
-      coefficient_Jy = Jy
-      coefficient_Jz = Jz
-    end
-    @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
-
     if mod(tmp_x, 2) == 0
-      os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
-      # @show b.s1, b.s2
-      # enumerate_bonds += 1
+      os .+= -Jz, "Sz", b.s1, "Sz", b.s2
+      @show b.s1, b.s2
+      enumerate_bonds += 1
     else
       if b.s2 == b.s1 + Ny
-        os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
+        os .+= -Jx, "Sx", b.s1, "Sx", b.s2
         # @show b.s1, b.s2
         # enumerate_bonds += 1
       else
-        os .+= -coefficient_Jy, "Sy", b.s1, "Sy", b.s2
+        os .+= -Jy, "Sy", b.s1, "Sy", b.s2
         # @show b.s1, b.s2
         # enumerate_bonds += 1
       end 
@@ -140,7 +126,7 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 1
+  nsweeps = 12
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
   cutoff  = [1E-8]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -298,54 +284,6 @@ let
     y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
   end
 
-  # Compute the eigenvalue of the order parameter near the first vacancy
-  order_parameter_loop = Vector{String}(["Z", "Z", "Y", "X", "X", "X", "Z", "Y", "Y", "Y", "X", "Z"])
-  order_parameter_inds = Matrix{Int64}(undef, 1, 12)
-  order_parameter_inds[1, :] = [31, 28, 32, 36, 39, 43, 46, 42, 38, 34, 30, 27]
-  order_parameter = Vector{Float64}(undef, size(order_parameter_inds)[1])
-
-  @show size(order_parameter_inds)[1]
-  for index in 1 : size(order_parameter_inds)[1]
-    os_parameter = OpSum()
-    os_parameter += order_parameter_loop[1], order_parameter_inds[index, 1], 
-      order_parameter_loop[2], order_parameter_inds[index, 2], 
-      order_parameter_loop[3], order_parameter_inds[index, 3], 
-      order_parameter_loop[4], order_parameter_inds[index, 4], 
-      order_parameter_loop[5], order_parameter_inds[index, 5], 
-      order_parameter_loop[6], order_parameter_inds[index, 6],
-      order_parameter_loop[7], order_parameter_inds[index, 7],
-      order_parameter_loop[8], order_parameter_inds[index, 8],
-      order_parameter_loop[9], order_parameter_inds[index, 9],
-      order_parameter_loop[10], order_parameter_inds[index, 10],
-      order_parameter_loop[11], order_parameter_inds[index, 11],
-      order_parameter_loop[12], order_parameter_inds[index, 12]
-    W_parameter = MPO(os_parameter, sites)
-    order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  end
-
-  # Compute the eigenvalue of the order parameter near the second vacancy
-  order_index2 = Matrix{Int64}(undef, 1, 12)
-  order_index2[1, :] = [63, 60, 64, 86, 71, 75, 78, 74, 70, 66, 62, 59]
-  order_parameter2 = Vector{Float64}(undef, size(order_index2)[1])
-
-  @show size(order_index2)[1]
-  for index in 1 : size(order_index2)[1]
-    os_parameter = OpSum()
-    os_parameter += order_parameter_loop[1], order_index2[index, 1], 
-      order_parameter_loop[2], order_index2[index, 2], 
-      order_parameter_loop[3], order_index2[index, 3], 
-      order_parameter_loop[4], order_index2[index, 4], 
-      order_parameter_loop[5], order_index2[index, 5], 
-      order_parameter_loop[6], order_index2[index, 6],
-      order_parameter_loop[7], order_index2[index, 7],
-      order_parameter_loop[8], order_index2[index, 8],
-      order_parameter_loop[9], order_index2[index, 9],
-      order_parameter_loop[10], order_index2[index, 10],
-      order_parameter_loop[11], order_index2[index, 11],
-      order_parameter_loop[12], order_index2[index, 12]
-    W_parameter = MPO(os_parameter, sites)
-    order_parameter2[index] = real(inner(ψ', W_parameter, ψ))
-  end
 
   # # Compute the eigenvalues of the loop operators in the x-direction
   # if x_direction_periodic
@@ -378,10 +316,6 @@ let
   println("")
   println("Eigenvalues of the plaquette operator:")
   @show W_operator_eigenvalues
-  println("")
-
-  print("")
-  println("Eigenvalues of the loop operator(s):")
   if x_direction_periodic
     @show loop_operator_x_eigenvalues
   end
@@ -389,43 +323,31 @@ let
   println("")
 
   println("")
-  println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  @show order_parameter
-  println("")
-
-  println("")
-  println("Eigenvalues of the twelve-point correlator near the second vacancy:")
-  @show order_parameter2
-  println("")
-
-  println("")
   println("Variance of the energy is $variance")
   println("")
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "plaquette", W_operator_eigenvalues)
-  #   if x_direction_periodic
-  #     write(file, "Wlx", loop_operator_x_eigenvalues)
-  #   end
-  #   write(file, "Wly", y_loop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  #   write(file, "OrderParameter2", order_parameter2)
-  # end
+  h5open("../data/2d_kitaev_honeycomb_lattice_FM_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "plaquette", W_operator_eigenvalues)
+    if x_direction_periodic
+      write(file, "Wlx", loop_operator_x_eigenvalues)
+    end
+    write(file, "Wly", y_loop_eigenvalues)
+  end
 
   return
 end
