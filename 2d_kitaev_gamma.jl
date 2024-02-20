@@ -50,8 +50,11 @@ let
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx=Jy=Jz=1.0
   h=0.0
-  gamma=0.4
-  @show Jx, Jy, Jz, h, gamma
+  gamma=0.8
+  gamma_prime=0.0
+  # Coefficient for the interaction strengths near the defects
+  alpha=0.01
+  @show Jx, Jy, Jz, h, gamma, gamma_prime
 
   # honeycomb lattice
   x_direction_periodic = false
@@ -77,9 +80,9 @@ let
   for b in lattice
     tmp_x = div(b.s1 - 1, Ny) + 1
     if in(b.s1, sites_to_delete) || in(b.s2, sites_to_delete)
-      coefficient_Jx = 0.01 * Jx
-      coefficient_Jy = 0.01 * Jy
-      coefficient_Jz = 0.01 * Jz
+      coefficient_Jx = alpha * Jx
+      coefficient_Jy = alpha * Jy
+      coefficient_Jz = alpha * Jz
     else
       coefficient_Jx = Jx
       coefficient_Jy = Jy
@@ -90,28 +93,46 @@ let
     if mod(tmp_x, 2) == 0
       os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
       
-      # Introduce the bond-dependent interactions
+      # Introduce the bond-dependent interactions with γ terms
       os .+= gamma, "Sx", b.s1, "Sy", b.s2
       os .+= gamma, "Sy", b.s1, "Sx", b.s2
 
-      # @show b.s1, b.s2
-      # enumerate_bonds += 1
+      # # Introduce the bond-dependent interactions with γ' terms
+      # os .+= gamma_prime, "Sx", b.s1, "Sz", b.s2
+      # os .+= gamma_prime, "Sz", b.s1, "Sx", b.s2
+      # os .+= gamma_prime, "Sy", b.s1, "Sz", b.s2
+      # os .+= gamma_prime, "Sz", b.s1, "Sy", b.s2
+
+      @show b.s1, b.s2
+      enumerate_bonds += 1
     else
       if b.s2 == b.s1 + Ny
         os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
 
-        # Introduce the bond-dependent interactions
+        # Introduce the bond-dependent interactions with γ terms
         os .+= gamma, "Sy", b.s1, "Sz", b.s2
         os .+= gamma, "Sz", b.s1, "Sy", b.s2
+
+        # # Introduce the bond-dependent interactions with γ' terms
+        # os .+= gamma_prime, "Sz", b.s1, "Sx", b.s2
+        # os .+= gamma_prime, "Sx", b.s1, "Sz", b.s2
+        # os .+= gamma_prime, "Sy", b.s1, "Sx", b.s2
+        # os .+= gamma_prime, "Sx", b.s1, "Sy", b.s2
 
         # @show b.s1, b.s2
         # enumerate_bonds += 1
       else
         os .+= -coefficient_Jy, "Sy", b.s1, "Sy", b.s2
 
-        # Introduce the bond-dependent interactions
+        # Introduce the bond-dependent interactions with γ terms
         os .+= gamma, "Sx", b.s1, "Sz", b.s2
         os .+= gamma, "Sz", b.s1, "Sx", b.s2
+        
+        # # Introduce the bond-dependent interactions with γ' terms
+        # os .+= gamma_prime, "Sx", b.s1, "Sy", b.s2
+        # os .+= gamma_prime, "Sy", b.s1, "Sx", b.s2
+        # os .+= gamma_prime, "Sz", b.s1, "Sy", b.s2
+        # os .+= gamma_prime, "Sy", b.s1, "Sz", b.s2
 
         # @show b.s1, b.s2
         # enumerate_bonds += 1
@@ -128,7 +149,6 @@ let
   end
   @show enumerate_bonds
 
-  
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
   @show length(lattice_sites)
@@ -141,7 +161,6 @@ let
     end
   end
   # @show os
- 
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
 
@@ -154,7 +173,7 @@ let
 
   
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
-  nsweeps = 10
+  nsweeps = 1
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
   cutoff  = [1E-8]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -224,16 +243,10 @@ let
     y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
   end
 
-  # Check the variance of the energy
-  H2 = inner(H, ψ, H, ψ)
-  E₀ = inner(ψ', H, ψ)
-  variance = H2 - E₀^2
-
 
   # Print out several quantities of interest including the energy per site etc.
   @show number_of_bonds, energy / number_of_bonds
   @show N, energy / N
-  @show E₀
   @show tmp_observer.ehistory
   println("")
   println("Eigenvalues of the plaquette operator:")
@@ -245,30 +258,35 @@ let
   @show y_loop_eigenvalues
   println("")
 
+  # Check the variance of the energy
+  H2 = inner(H, ψ, H, ψ)
+  E₀ = inner(ψ', H, ψ)
+  variance = H2 - E₀^2
 
   println("")
+  @show E₀
   println("Variance of the energy is $variance")
   println("")
   
-  # h5open("data/bond-dependent/2d_kitaev_L$(Nx)W$(Ny)_FM.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Wly", y_loop_eigenvalues)
-  # end
+  h5open("data/bond-dependent/2d_kitaev_L$(Nx)W$(Ny)_FM.h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Wly", y_loop_eigenvalues)
+  end
 
   return
 end
