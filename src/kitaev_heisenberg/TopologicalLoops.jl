@@ -22,7 +22,7 @@ function LoopList(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, dire
             end
         end
     end     
-
+    # @show tmp_list
     return tmp_list
 end
 

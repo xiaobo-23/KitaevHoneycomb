@@ -39,10 +39,10 @@ end
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 4
-  Ny_unit_cell = 4
-  Nx = 2 * Nx_unit_cell
-  Ny = Ny_unit_cell
+  NxUnitCell = 9
+  NyUnitCell = 3
+  Nx = 2 * NxUnitCell
+  Ny = NyUnitCell
   N = Nx * Ny
 
   # Set up the interaction parameters for the Hamiltonian
@@ -197,7 +197,7 @@ let
   # Construct the plaquette operators
   # normalize!(ψ)
   plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-  loop_inds = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  loop_inds = PlaquetteList(NxUnitCell, NyUnitCell, "rings", false)
   for index in 1 : size(loop_inds)[1]
     @show loop_inds[index, :]
   end
@@ -224,7 +224,7 @@ let
   @show LoopY
 
   # Construct the loop indices in the y direction
-  y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
+  y_inds = LoopList(NxUnitCell, NyUnitCell, "rings", "y")
   y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
 
   # Compute eigenvalues of the loop operators in the y direction
@@ -236,16 +236,55 @@ let
       LoopY[3], y_inds[loop_index, 3], 
       LoopY[4], y_inds[loop_index, 4], 
       LoopY[5], y_inds[loop_index, 5], 
-      LoopY[6], y_inds[loop_index, 6],
-      LoopY[7], y_inds[loop_index, 7],
-      LoopY[8], y_inds[loop_index, 8]
+      LoopY[6], y_inds[loop_index, 6]
+      # LoopY[7], y_inds[loop_index, 7],
+      # LoopY[8], y_inds[loop_index, 8]
     Wl = MPO(os_wl, sites)
     y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
   end
 
 
-    # Compute the plaquette correlation function
+  # Compute the plaquette correlation function
+  SiteList = Vector{Int64}([])
+  for index in 1 : NxUnitCell - 1
+    push!(SiteList, (2 * index - 1) * NyUnitCell)
+  end
+  @show SiteList
+  
+  # Define the string vector of the plaquette correlator
+  # It should be a twelve-point correlator
+  plaquette_correlator = Vector{String}(["Z", "Y", "X", "Z", "Y", "X", 
+  "Z", "Y", "X", "Z", "Y", "X"])
+  plaquette_correlation = Matrix{Float64}(undef, length(SiteList), length(SiteList))
 
+  for (index1, Seed_Index1) in enumerate(SiteList)
+    for (index2, Seed_Index2) in enumerate(SiteList)
+      tmp_indices = Vector{Int64}([])
+      Plaquette1 = GeneratePlaquetteRings(Seed_Index1, NyUnitCell; edge=false)
+      Plaquette2 = GeneratePlaquetteRings(Seed_Index2, NyUnitCell; edge=false)
+      append!(tmp_indices, Plaquette1)
+      append!(tmp_indices, Plaquette2)
+      @show index1, Seed_Index1, index2, Seed_Index2
+      @show tmp_indices
+
+      tmp_op = OpSum()
+      tmp_op += plaquette_correlator[1], tmp_indices[1], 
+        plaquette_correlator[2], tmp_indices[2], 
+        plaquette_correlator[3], tmp_indices[3], 
+        plaquette_correlator[4], tmp_indices[4], 
+        plaquette_correlator[5], tmp_indices[5], 
+        plaquette_correlator[6], tmp_indices[6],
+        plaquette_correlator[7], tmp_indices[7], 
+        plaquette_correlator[8], tmp_indices[8],
+        plaquette_correlator[9], tmp_indices[9], 
+        plaquette_correlator[10], tmp_indices[10],
+        plaquette_correlator[11], tmp_indices[11], 
+        plaquette_correlator[12], tmp_indices[12]
+      WpWp = MPO(tmp_op, sites)
+      plaquette_correlation[index1, index2] = real(inner(ψ', WpWp, ψ))
+    end
+  end
+  
 
   # Print out several quantities of interest including the energy per site etc.
   @show number_of_bonds, energy / number_of_bonds
@@ -260,6 +299,13 @@ let
   println("Eigenvalues of the loop operator(s):")
   @show y_loop_eigenvalues
   println("")
+
+
+  println("")
+  println("Plaquette correlation function:")
+  @show plaquette_correlation
+  println("")
+
 
   # Check the variance of the energy
   H2 = inner(H, ψ, H, ψ)
@@ -289,6 +335,7 @@ let
   #   write(file, "Czz", zzcorr)
   #   write(file, "Plaquette", W_operator_eigenvalues)
   #   write(file, "Wly", y_loop_eigenvalues)
+  #   write(file, "PlaquetteCorrelation", plaquette_correlation)
   # end
 
   return
