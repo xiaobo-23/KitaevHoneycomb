@@ -2,17 +2,20 @@
 
 mkdir data
 
-for field in $(seq 0.0  0.002  0.025)
+for field in $(seq 0.0  0.01  1.0)
 do 
-    mkdir h$field
-    cp 2d_kitaev_honeycomb_vacancy.jl h$field/2d_kitaev_honeycomb_vacancy.jl
+    mkdir gamma$field
+    cp 2d_kitaev_gamma.jl gamma$field/2d_kitaev_gamma.jl
     
-    cd h$field
-        # Linux version
-        sed -i "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb_vacancy.jl
+    cd gamma$field
+        # # Linux version
+        # sed -i "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb_vacancy_W3.jl
         
         # # # MacOS version
         # sed -i "" "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb.jl
+
+        # Linux version
+        sed -i "s/gamma=0.8/gamma=$field/g" 2d_kitaev_gamma.jl
     cd ..  
 done
 
@@ -20,7 +23,7 @@ done
 python3 Generate_disBatch_Input_File.py 
     
 # Job submission on rusty
-sbatch -n 26 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
+sbatch -n 101 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
 
 # sbatch -n 250 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev2
 

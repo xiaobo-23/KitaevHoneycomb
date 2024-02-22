@@ -1,13 +1,12 @@
 # Simulate the 2d Kitaev model on a honeycomb lattice with magnetic field and bond-dependent interactions
 
-# using Pkg
 using ITensors
 using HDF5
 
-include("src/kitaev_heisenberg/Honeycomb_Lattice.jl")
+include("src/kitaev_heisenberg/HoneycombLattice.jl")
 include("src/kitaev_heisenberg/Entanglement.jl")
 include("src/kitaev_heisenberg/TopologicalLoops.jl")
-
+include("src/kitaev_heisenberg/PlaquetteGenerator.jl")
 
 
 # Define a custom observer
@@ -35,6 +34,7 @@ end
 #   println("The energy is $energy")
 #   push!(tmp_energy.ehistory, energy)
 # end
+
 
 let
   # Set up the parameters for the lattice
@@ -175,11 +175,11 @@ let
   # Set up the parameters for DMRG including the maximum bond dimension, truncation error cutoff, etc.
   nsweeps = 1
   maxdim  = [20, 60, 100, 100, 200, 400, 800, 1000, 1500, 2000]
-  cutoff  = [1E-8]
+  cutoff  = [1E-10]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
-  
+
   # Run DMRG and measure the energy, one-point functions, and two-point functions
   tmp_observer = energyObserver()
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
@@ -217,11 +217,11 @@ let
   
 
   # Construct the loop operators in the y direction
-  loop_operator_y = Vector{String}([])
+  LoopY = Vector{String}([])
   for index in 1 : 2 * Ny
-    push!(loop_operator_y, "Z")
+    push!(LoopY, "Z")
   end
-  @show loop_operator_y
+  @show LoopY
 
   # Construct the loop indices in the y direction
   y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
@@ -231,17 +231,20 @@ let
   for loop_index in 1 : size(y_inds)[1]
     # @show y_inds[loop_index, :]
     os_wl = OpSum()
-    os_wl += loop_operator_y[1], y_inds[loop_index, 1], 
-      loop_operator_y[2], y_inds[loop_index, 2], 
-      loop_operator_y[3], y_inds[loop_index, 3], 
-      loop_operator_y[4], y_inds[loop_index, 4], 
-      loop_operator_y[5], y_inds[loop_index, 5], 
-      loop_operator_y[6], y_inds[loop_index, 6],
-      loop_operator_y[7], y_inds[loop_index, 7],
-      loop_operator_y[8], y_inds[loop_index, 8]
+    os_wl += LoopY[1], y_inds[loop_index, 1], 
+      LoopY[2], y_inds[loop_index, 2], 
+      LoopY[3], y_inds[loop_index, 3], 
+      LoopY[4], y_inds[loop_index, 4], 
+      LoopY[5], y_inds[loop_index, 5], 
+      LoopY[6], y_inds[loop_index, 6],
+      LoopY[7], y_inds[loop_index, 7],
+      LoopY[8], y_inds[loop_index, 8]
     Wl = MPO(os_wl, sites)
     y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
   end
+
+
+    # Compute the plaquette correlation function
 
 
   # Print out several quantities of interest including the energy per site etc.
@@ -268,25 +271,25 @@ let
   println("Variance of the energy is $variance")
   println("")
   
-  h5open("data/bond-dependent/2d_kitaev_L$(Nx)W$(Ny)_FM.h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", tmp_observer.ehistory)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Wly", y_loop_eigenvalues)
-  end
+  # h5open("data/bond-dependent/2d_kitaev_L$(Nx)W$(Ny)_FM.h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", tmp_observer.ehistory)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Wly", y_loop_eigenvalues)
+  # end
 
   return
 end
