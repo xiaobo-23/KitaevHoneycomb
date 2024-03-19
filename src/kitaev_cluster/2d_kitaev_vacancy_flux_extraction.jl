@@ -26,23 +26,26 @@ function ITensors.measure!(tmpObs::energyObserver; kwargs...)
   end
 end
 
-
 let
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 14
+  Nx_unit_cell = 15
   Ny_unit_cell = 3
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
   N = Nx * Ny
 
+  
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx=Jy=Jz=1.0
-  alpha=0.001
+  Jx = Jy = Jz = 1.0
+  alpha = 0.001
+  lambda_left=-0.1
+  lambda_right=0.1
   h=0.0
-  @show Jx, Jy, Jz, h
+  @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
+
 
   # honeycomb lattice
   x_direction_periodic = false
@@ -57,9 +60,12 @@ let
   @show lattice
   
   # Select the position(s) of the vacancies
-  sites_to_delete = Set([26, 59])
+  sites_to_delete = Set([44])
   lattice_sites = Set{Int64}()
-
+  left_ptr = 4
+  right_ptr = 12
+  
+  
   # Construct the Hamiltonian using the OpSum system
   os = OpSum()
   enumerate_bonds = 0
@@ -109,12 +115,42 @@ let
   @show lattice_sites
   if h > 1e-8
     for tmp_site in lattice_sites
-      os .+= h, "Sx", tmp_site
-      os .+= h, "Sy", tmp_site
-      os .+= h, "Sz", tmp_site
+      os .+= -1.0 * h, "Sx", tmp_site
+      os .+= -1.0 * h, "Sy", tmp_site
+      os .+= -1.0 * h, "Sz", tmp_site
     end
   end
   # @show os
+  
+  # Add the string operators as perturbations in the left and right edges of the cylinder
+  string_operators = Vector{String}([])
+  for index in 1 : 2 * Ny
+    push!(string_operators, "Z")
+  end
+  @show string_operators
+
+  
+  left_pinning = Vector{Int64}()
+  right_pinning = Vector{Int64}()
+  for tmp_index in 1 : 2 * Ny
+    push!(left_pinning, 2 * (left_ptr - 1) * Ny + tmp_index)
+    push!(right_pinning, 2 * (right_ptr - 1) * Ny + tmp_index)
+  end
+  @show left_pinning, right_pinning
+  
+  
+  # Add the loop operator near the left edge of the cylinder
+  os .+= -1.0 * lambda_left, string_operators[1], left_pinning[1], 
+    string_operators[2], left_pinning[2], string_operators[3], left_pinning[3], 
+    string_operators[4], left_pinning[4], string_operators[5], left_pinning[5], 
+    string_operators[6], left_pinning[6]
+  
+  # Add the loop operator near the right edge of the cylinder
+  os .+= -1.0 * lambda_right, string_operators[1], right_pinning[1], 
+    string_operators[2], right_pinning[2], string_operators[3], right_pinning[3], 
+    string_operators[4], right_pinning[4], string_operators[5], right_pinning[5], 
+    string_operators[6], right_pinning[6]
+
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
 
@@ -127,9 +163,9 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 35
+  nsweeps = 25
   maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 2500]
-  cutoff  = [1E-10]
+  cutoff  = [1E-12]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise   = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -164,10 +200,9 @@ let
       plaquette_operator[3], loop_inds[loop_index, 3], plaquette_operator[4], loop_inds[loop_index, 4], 
       plaquette_operator[5], loop_inds[loop_index, 5], plaquette_operator[6], loop_inds[loop_index, 6]
     W = MPO(os_w, sites)
-    W_operator_eigenvalues[loop_index] = real(inner(ψ', W, ψ))
+    W_operator_eigenvalues[loop_index] = -1.0 * real(inner(ψ', W, ψ))
     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
   end
-
 
   # Construct the loop operators in the y direction
   # loop_operator_y = Vector{String}(["Z", "Z", "Z", "Z", "Z", "Z", "Z", "Z"])
@@ -175,12 +210,13 @@ let
   for index in 1 : 2 * Ny
     push!(loop_operator_y, "Z")
   end
-  @show loop_operator_y
+
 
   # Construct the loop indices in the y direction
   y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
   y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
 
+  
   # Compute eigenvalues of the loop operators in the y direction
   for loop_index in 1 : size(y_inds)[1]
     @show y_inds[loop_index, :]
@@ -197,10 +233,9 @@ let
 
   # Compute the eigenvalues of the order parameters near vacancies
   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  order_indices = Matrix{Int64}(undef, 2, 12)
+  order_indices = Matrix{Int64}(undef, 1, 12)
   # Complete the loop indices near vacancies
-  order_indices[1, :] = [34, 31, 28, 25, 22, 20, 23, 21, 24, 27, 29, 32] 
-  order_indices[2, :] = [51, 54, 57, 60, 63, 65, 62, 64, 61, 58, 56, 53]
+  order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]
   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
 
   @show size(order_indices)[1]
@@ -231,13 +266,11 @@ let
   @show W_operator_eigenvalues
   println("")
 
-  
   print("")
   println("Eigenvalues of the loop operator(s):")
   @show y_loop_eigenvalues
   println("")
 
- 
   println("")
   println("Eigenvalues of the twelve-point correlator near the first vacancy:")
   @show order_parameter
@@ -249,13 +282,11 @@ let
   E₀ = inner(ψ', H, ψ)
   variance = H2 - E₀^2
  
-  
   println("")
   @show E₀
   println("Variance of the energy is $variance")
   println("")
   
-
   h5open("../data/2d_kitaev_FM_h$(h).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
@@ -272,7 +303,7 @@ let
     write(file, "Sz0", Sz₀)
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)
-    write(file, "plaquette", W_operator_eigenvalues)
+    write(file, "Plaquette", W_operator_eigenvalues)
     write(file, "Wly", y_loop_eigenvalues)
     write(file, "OrderParameter", order_parameter)
   end
