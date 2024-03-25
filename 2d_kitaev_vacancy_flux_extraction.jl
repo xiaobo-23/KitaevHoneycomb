@@ -1,6 +1,7 @@
 # Simulate the 2d Kitaev model on a honeycomb lattice with magnetic fields and vacancies
 
 using ITensors
+using LinearAlgebra
 using HDF5
 
 include("src/kitaev_heisenberg/HoneycombLattice.jl")
@@ -62,10 +63,10 @@ let
   
   # Select the position(s) of the vacancies
   sites_to_delete = Set([44])
-  left_ptr = 4
-  right_ptr = 12
   lattice_sites = Set{Int64}()
+  pinning_ptr = Vector{Int64}([4, 5, 6, 7, 9, 10, 11, 12])
   
+
   # Construct the Hamiltonian using the OpSum system
   os = OpSum()
   enumerate_bonds = 0
@@ -129,27 +130,31 @@ let
   end
   @show string_operators
 
-  
-  left_pinning = Vector{Int64}()
-  right_pinning = Vector{Int64}()
-  for tmp_index in 1 : 2 * Ny
-    push!(left_pinning, 2 * (left_ptr - 1) * Ny + tmp_index)
-    push!(right_pinning, 2 * (right_ptr - 1) * Ny + tmp_index)
+  # Add the index of the pinning sites into a Matrix
+  pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
+  for index1 in 1 : size(pinning_sites, 1)
+    for index2 in 1 : 2 * Ny
+      pinning_sites[index1, index2] = 2 * (pinning_ptr[index1] - 1) * Ny + index2
+    end
+    @show pinning_sites[index1, :]
   end
-  @show left_pinning, right_pinning
   
+  for index in 1 : Int(size(pinning_sites, 1) / 2)
+    @show index
+    os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
+      string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+      string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+      string_operators[6], pinning_sites[index, 6]
+  end
   
-  # Add the loop operator near the left edge of the cylinder
-  os .+= -1.0 * lambda_left, string_operators[1], left_pinning[1], 
-    string_operators[2], left_pinning[2], string_operators[3], left_pinning[3], 
-    string_operators[4], left_pinning[4], string_operators[5], left_pinning[5], 
-    string_operators[6], left_pinning[6]
-  
-  # Add the loop operator near the right edge of the cylinder
-  os .+= -1.0 * lambda_right, string_operators[1], right_pinning[1], 
-    string_operators[2], right_pinning[2], string_operators[3], right_pinning[3], 
-    string_operators[4], right_pinning[4], string_operators[5], right_pinning[5], 
-    string_operators[6], right_pinning[6]
+  for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
+    @show index
+    os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
+      string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+      string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+      string_operators[6], pinning_sites[index, 6]
+  end
+
 
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
@@ -163,11 +168,11 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 25
-  maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 2500]
+  nsweeps = 30
+  maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 3000]
   cutoff  = [1E-12]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
-  # noise   = [1E-6, 1E-7, 1E-8, 0.0]
+  # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
   
   # Run DMRG and measure the energy, one-point functions, and two-point functions
@@ -179,9 +184,9 @@ let
   Sx = expect(ψ, "Sx", sites = 1 : N)
   Sy = expect(ψ, "iSy", sites = 1 : N)
   Sz = expect(ψ, "Sz", sites = 1 : N)
-  xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
+  # xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+  # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
+  # zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
 
 
   # Compute the eigenvalues of all plaquette operators
@@ -211,7 +216,6 @@ let
     push!(loop_operator_y, "Z")
   end
 
-
   # Construct the loop indices in the y direction
   y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
   y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
@@ -238,6 +242,7 @@ let
   order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]
   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
 
+  
   @show size(order_indices)[1]
   for index in 1 : size(order_indices)[1]
     os_parameter = OpSum()
