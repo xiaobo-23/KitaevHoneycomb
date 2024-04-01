@@ -4,9 +4,9 @@ using ITensors
 using LinearAlgebra
 using HDF5
 
-include("src/kitaev_heisenberg/HoneycombLattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
+include("../HoneycombLattice.jl")
+include("../Entanglement.jl")
+include("../TopologicalLoops.jl")
 
 # Define a custom observer
 mutable struct energyObserver <: AbstractObserver
@@ -43,10 +43,10 @@ let
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx = Jy = Jz = 1.0
   alpha = 0.001
-  lambda_left=0.1
-  lambda_right=0.1
   h=0.0
-  @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
+  lambda_left  = -0.05
+  lambda_right = 1.0 * lambda_left
+  @show Jx, Jy, Jz, alpha, h, lambda_left, lambda_right
 
 
   # honeycomb lattice
@@ -168,9 +168,9 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 30
+  nsweeps = 50
   maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 3000]
-  cutoff  = [1E-12]
+  cutoff  = [1E-10]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -292,26 +292,26 @@ let
   println("Variance of the energy is $variance")
   println("")
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "plaquette", W_operator_eigenvalues)
-  #   write(file, "Wly", y_loop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", y_loop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
