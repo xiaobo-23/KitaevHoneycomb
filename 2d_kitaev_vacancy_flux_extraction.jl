@@ -1,5 +1,5 @@
-# Simulate the 2d Kitaev model on a honeycomb lattice with magnetic fields and vacancies
-
+# Simulate the 2d Kitaev model on a honeycomb lattice 
+# Introducing vacancies, magnetic field, and string operators
 using HDF5
 using ITensors
 using MKL
@@ -11,7 +11,12 @@ include("src/kitaev_heisenberg/Entanglement.jl")
 include("src/kitaev_heisenberg/TopologicalLoops.jl")
 
 
+# Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
+MKL_NUM_THREADS = 8
+OPENBLAS_NUM_THREADS = 8
+OMP_NUM_THREADS = 8
 
+# Timing and profiling
 const time_machine = TimerOutput()
 
 # Define a custom observer
@@ -34,6 +39,11 @@ end
 
 
 let
+  # Monitor the number of threads used by BLAS and LAPACK
+  @show BLAS.get_config()
+  @show BLAS.get_num_threads()
+
+
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
   Nx_unit_cell = 15
@@ -42,18 +52,17 @@ let
   Ny = Ny_unit_cell
   N = Nx * Ny
 
-  
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx = Jy = Jz = 1.0
   alpha = 0.001
-  lambda_left=0.1
-  lambda_right=0.1
   h=0.0
+  lambda_left  = 0.02
+  lambda_right = 1.0 * lambda_left
   @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
 
-
+  
   # honeycomb lattice
   x_direction_periodic = false
   if x_direction_periodic
@@ -65,6 +74,7 @@ let
   number_of_bonds = length(lattice)
   @show number_of_bonds
   # @show lattice
+  
   
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
@@ -175,7 +185,7 @@ let
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 1
   maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 3000]
-  cutoff  = [1E-12]
+  cutoff  = [1E-10]
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -225,28 +235,23 @@ let
     end
   end
 
-  # Construct the loop operators in the y directions
+  
   @timeit time_machine "loop operators" begin
-    loop_operator_y = Vector{String}([])
-    for index in 1 : 2 * Ny
-      push!(loop_operator_y, "Z")
-    end
-
-    # Construct the loop indices in the y direction
+    # Construct the loop indices in the direction with PBC
     y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
     y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
 
     
-    # Compute eigenvalues of the loop operators in the y direction
+    # Compute eigenvalues of the loop operators in the direction with PBC.
     for loop_index in 1 : size(y_inds)[1]
       @show y_inds[loop_index, :]
       os_wl = OpSum()
-      os_wl += loop_operator_y[1], y_inds[loop_index, 1], 
-        loop_operator_y[2], y_inds[loop_index, 2], 
-        loop_operator_y[3], y_inds[loop_index, 3], 
-        loop_operator_y[4], y_inds[loop_index, 4], 
-        loop_operator_y[5], y_inds[loop_index, 5], 
-        loop_operator_y[6], y_inds[loop_index, 6]
+      os_wl += string_operators[1], y_inds[loop_index, 1], 
+        string_operators[2], y_inds[loop_index, 2], 
+        string_operators[3], y_inds[loop_index, 3], 
+        string_operators[4], y_inds[loop_index, 4], 
+        string_operators[5], y_inds[loop_index, 5], 
+        string_operators[6], y_inds[loop_index, 6]
       Wl = MPO(os_wl, sites)
       y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
     end
@@ -309,7 +314,6 @@ let
     variance = H2 - E₀^2
   end
  
-  
   println("")
   @show E₀
   println("Variance of the energy is $variance")
