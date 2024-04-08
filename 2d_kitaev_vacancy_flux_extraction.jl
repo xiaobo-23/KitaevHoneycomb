@@ -58,7 +58,7 @@ let
   Jx = Jy = Jz = 1.0
   alpha = 0.001
   h=0.0
-  lambda_left  = 0.02
+  lambda_left  = 0.05
   lambda_right = 1.0 * lambda_left
   @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
 
@@ -171,21 +171,22 @@ let
   end
 
 
+  # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
 
 
-  # Initialize wavefunction to a random MPS
-  # of bond-dimension 10 with same quantum 
+  # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
   # numbers as `state`
   state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
   ψ₀ = randomMPS(sites, state, 20)
 
 
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
-  maxdim  = [20, 60, 60, 100, 100, 200, 400, 800, 1000, 1500, 3000]
-  cutoff  = [1E-10]
+  nsweeps = 35
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  cutoff  = [1E-8]
+  eigsolve_krylovdim = 50
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
@@ -197,9 +198,10 @@ let
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
   @timeit time_machine "dmrg simulation" begin
-    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, observer = tmp_observer) 
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = tmp_observer) 
   end
 
+  
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Sy = expect(ψ, "iSy", sites = 1 : N)
@@ -223,12 +225,16 @@ let
     end
     W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
     
+    
     # Compute the eigenvalues of the plaquette operator
     for loop_index in 1 : size(loop_inds)[1]
       os_w = OpSum()
-      os_w += plaquette_operator[1], loop_inds[loop_index, 1], plaquette_operator[2], loop_inds[loop_index, 2], 
-        plaquette_operator[3], loop_inds[loop_index, 3], plaquette_operator[4], loop_inds[loop_index, 4], 
-        plaquette_operator[5], loop_inds[loop_index, 5], plaquette_operator[6], loop_inds[loop_index, 6]
+      os_w += plaquette_operator[1], loop_inds[loop_index, 1], 
+        plaquette_operator[2], loop_inds[loop_index, 2], 
+        plaquette_operator[3], loop_inds[loop_index, 3], 
+        plaquette_operator[4], loop_inds[loop_index, 4], 
+        plaquette_operator[5], loop_inds[loop_index, 5], 
+        plaquette_operator[6], loop_inds[loop_index, 6]
       W = MPO(os_w, sites)
       W_operator_eigenvalues[loop_index] = -1.0 * real(inner(ψ', W, ψ))
       # @show inner(ψ', W, ψ) / inner(ψ', ψ)
@@ -322,26 +328,26 @@ let
 
   @show time_machine
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "plaquette", W_operator_eigenvalues)
-  #   write(file, "Wly", y_loop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", tmp_observer.ehistory)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", y_loop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
