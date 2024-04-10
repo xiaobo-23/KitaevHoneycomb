@@ -6,6 +6,7 @@ using MKL
 using TimerOutputs
 using LinearAlgebra
 
+
 include("../HoneycombLattice.jl")
 include("../Entanglement.jl")
 include("../TopologicalLoops.jl")
@@ -58,7 +59,7 @@ let
   Jx = Jy = Jz = 1.0
   alpha = 0.001
   h=0.0
-  lambda_left  = -0.02
+  lambda_left  = -0.1
   lambda_right = 1.0 * lambda_left
   @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
 
@@ -79,9 +80,11 @@ let
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
   lattice_sites   = Set{Int64}()
-  pinning_ptr = Vector{Int64}([4, 5, 6, 7, 9, 10, 11, 12])
-  
+  pinning_ptr = collect(1 : Nx_unit_cell)
+  deleteat!(pinning_ptr, 8)
+  @show pinning_ptr
 
+  
   # Construct the Hamiltonian using the OpSum system
   os = OpSum()
   enumerate_bonds = 0
@@ -127,8 +130,8 @@ let
   
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
-  @show length(lattice_sites)
-  @show lattice_sites
+  # @show length(lattice_sites)
+  # @show lattice_sites
   if h > 1e-8
     for tmp_site in lattice_sites
       os .+= -1.0 * h, "Sx", tmp_site
@@ -145,6 +148,7 @@ let
   end
   @show string_operators
 
+  
   # Add the index of the pinning sites into a Matrix
   pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
   for index1 in 1 : size(pinning_sites, 1)
@@ -154,6 +158,7 @@ let
     @show pinning_sites[index1, :]
   end
   
+  
   for index in 1 : Int(size(pinning_sites, 1) / 2)
     @show index
     os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
@@ -161,6 +166,7 @@ let
       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
       string_operators[6], pinning_sites[index, 6]
   end
+  
   
   for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
     @show index
@@ -201,6 +207,7 @@ let
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = tmp_observer) 
   end
 
+  
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Sy = expect(ψ, "iSy", sites = 1 : N)
@@ -326,7 +333,6 @@ let
 
 
   @show time_machine
-  
   h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)

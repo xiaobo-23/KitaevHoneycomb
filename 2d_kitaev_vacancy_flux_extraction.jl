@@ -79,9 +79,10 @@ let
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
   lattice_sites   = Set{Int64}()
-  pinning_ptr = Vector{Int64}([4, 5, 6, 7, 9, 10, 11, 12])
-  
+  pinning_ptr = collect(1 : Nx_unit_cell)
+  deleteat!(pinning_ptr, 8); @show pinning_ptr
 
+  
   # Construct the Hamiltonian using the OpSum system
   os = OpSum()
   enumerate_bonds = 0
@@ -127,8 +128,8 @@ let
   
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
-  @show length(lattice_sites)
-  @show lattice_sites
+  # @show length(lattice_sites)
+  # @show lattice_sites
   if h > 1e-8
     for tmp_site in lattice_sites
       os .+= -1.0 * h, "Sx", tmp_site
@@ -145,6 +146,7 @@ let
   end
   @show string_operators
 
+  
   # Add the index of the pinning sites into a Matrix
   pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
   for index1 in 1 : size(pinning_sites, 1)
@@ -154,6 +156,7 @@ let
     @show pinning_sites[index1, :]
   end
   
+  
   for index in 1 : Int(size(pinning_sites, 1) / 2)
     @show index
     os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
@@ -161,6 +164,7 @@ let
       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
       string_operators[6], pinning_sites[index, 6]
   end
+  
   
   for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
     @show index
@@ -181,9 +185,13 @@ let
   state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
   ψ₀ = randomMPS(sites, state, 20)
 
+  
+  # Construct a DMRGobserver to measure local observables and stop the calculation
+  Sz_observer = DMRGObserver(["Sz"], sites, minsweeps=2, energy_tol = 1E-7)
 
+  
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 35
+  nsweeps = 2
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -198,10 +206,17 @@ let
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
   @timeit time_machine "dmrg simulation" begin
-    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = tmp_observer) 
+    # energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = tmp_observer)
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = Sz_observer) 
   end
 
-  
+
+  for (sweep, Szs) in enumerate(measurements(Sz_observer)["Sz"])
+    println("Total Sz after sweep $sweep= ", sum(Szs) / (2 * N))
+  end
+  @show energies(Sz_observer)
+  @show maxlinkdim(ψ)
+
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Sy = expect(ψ, "iSy", sites = 1 : N)
@@ -328,26 +343,26 @@ let
 
   @show time_machine
   
-  h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", tmp_observer.ehistory)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Loop", y_loop_eigenvalues)
-    write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", tmp_observer.ehistory)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", y_loop_eigenvalues)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end
