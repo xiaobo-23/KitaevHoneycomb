@@ -104,7 +104,7 @@ let
       push!(lattice_sites, b.s2)
     end
   end
-  @show enumerate_bonds
+  # @show enumerate_bonds
 
   
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
