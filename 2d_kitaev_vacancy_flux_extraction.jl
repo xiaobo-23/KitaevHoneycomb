@@ -19,14 +19,29 @@ OMP_NUM_THREADS = 8
 # Timing and profiling
 const time_machine = TimerOutput()
 
-# Define a custom observer
-mutable struct energyObserver <: AbstractObserver
+# Defining a custom observer and make this struct a subtype of AbstractObserver
+mutable struct CustomObserver <: AbstractObserver
   ehistory::Vector{Float64}
-  energyObserver() = new(Float64[])
+  chi::Vector{Int64}            # Bond dimensions  
+  etolerance::Float64
+  last_energy::Float64
+  minsweeps::Int64
+  # CustomObserver(etolerance=0.0) = new(Float64[], etolerance, 0.0, 0.0, 0, Int64[])
 end
 
+function CustomObserver(; etolerance=1E-7, minsweeps=5)
+  return CustomObserver(
+    Float64[], 
+    Int[], 
+    etolerance, 
+    0.0,
+    minsweeps,
+  )
+end
+
+
 # Overloading the measure! method
-function ITensors.measure!(tmpObs::energyObserver; kwargs...)
+function ITensors.measure!(tmpObs::CustomObserver; kwargs...)
   energy = kwargs[:energy]
   sweep = kwargs[:sweep]
   bond = kwargs[:bond]
@@ -186,10 +201,6 @@ let
   ψ₀ = randomMPS(sites, state, 20)
 
   
-  # Construct a DMRGobserver to measure local observables and stop the calculation
-  Sz_observer = DMRGObserver(["Sz"], sites, minsweeps=2, energy_tol = 1E-7)
-
-  
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 2
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
@@ -199,24 +210,33 @@ let
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
   
-  # Run DMRG and measure the energy, one-point functions, and two-point functions
-  tmp_observer = energyObserver()
+  # Measure the initial local observables (one-point functions)
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
+  # Construct a custom observer and stop the DMRG calculation early if needed
+  custom_observer = CustomObserver()
+
   @timeit time_machine "dmrg simulation" begin
-    # energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = tmp_observer)
-    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = Sz_observer) 
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
 
 
-  for (sweep, Szs) in enumerate(measurements(Sz_observer)["Sz"])
-    println("Total Sz after sweep $sweep= ", sum(Szs) / (2 * N))
-  end
-  @show energies(Sz_observer)
-  @show maxlinkdim(ψ)
+  # # Construct a DMRGobserver to measure local observables and stop the calculation early if needed
+  # Sz_observer = DMRGObserver(["Sz"], sites, minsweeps=2, energy_tol = 1E-7)
+  
+  # @timeit time_machine "dmrg simulation" begin
+  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = Sz_observer) 
+  # end
 
+  # for (sweep, Szs) in enumerate(measurements(Sz_observer)["Sz"])
+  #   println("Total Sz after sweep $sweep= ", sum(Szs) / (2 * N))
+  # end
+  # @show energies(Sz_observer)
+  # @show maxlinkdim(ψ)
+
+  
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Sy = expect(ψ, "iSy", sites = 1 : N)
@@ -311,7 +331,7 @@ let
   # Print out several quantities of interest including the energy per site etc.
   @show number_of_bonds, energy / number_of_bonds
   @show N, energy / N
-  @show tmp_observer.ehistory
+  @show custom_observer.ehistory
   println("")
   println("Eigenvalues of the plaquette operator:")
   @show W_operator_eigenvalues
