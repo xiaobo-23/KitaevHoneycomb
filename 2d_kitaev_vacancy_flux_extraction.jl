@@ -6,10 +6,10 @@ using MKL
 using TimerOutputs
 using LinearAlgebra
 import ITensors: energies
-
 include("src/kitaev_heisenberg/HoneycombLattice.jl")
 include("src/kitaev_heisenberg/Entanglement.jl")
 include("src/kitaev_heisenberg/TopologicalLoops.jl")
+include("src/kitaev_heisenberg/CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -20,59 +20,10 @@ OMP_NUM_THREADS = 8
 # Timing and profiling
 const time_machine = TimerOutput()
 
-
-# Defining a custom observer and make this struct a subtype of AbstractObserver
-mutable struct CustomObserver <: AbstractObserver
-  ehistory::Vector{Float64}
-  ehistory_full::Vector{Float64}
-  chi::Vector{Int64}            # Bond dimensions  
-  etolerance::Float64
-  last_energy::Float64
-  minsweeps::Int64
-  # CustomObserver(etolerance=0.0) = new(Float64[], Int64[], etolerance, 0.0, 0.0, 0)
-end
-
-function CustomObserver(; etolerance=1E-7, minsweeps=5)
-  return CustomObserver(
-    Float64[], 
-    Float64[],
-    Int[], 
-    etolerance, 
-    0.0,
-    minsweeps,
-  )
-end
-
-
-
-# Overloading the measure! method
-function ITensors.measure!(tmpObs::CustomObserver; kwargs...)
-  half_sweep = kwargs[:half_sweep]
-  energy = kwargs[:energy]
-  sweep = kwargs[:sweep]
-  bond = kwargs[:bond]
-  psi = kwargs[:psi]
-  outputlevel = kwargs[:outputlevel]
-
-  if bond == 1
-    push!(tmpObs.ehistory_full, energy)
-  end
-
-  if half_sweep == 2
-    if bond == 1
-      push!(tmpObs.ehistory, energy)
-      push!(tmpObs.chi, maxlinkdim(psi))
-    end
-  end
-end
-
-
-
 let
   # Monitor the number of threads used by BLAS and LAPACK
   @show BLAS.get_config()
   @show BLAS.get_num_threads()
-
 
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
@@ -217,7 +168,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 2
+  nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -231,9 +182,10 @@ let
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
   
-  
   # Construct a custom observer and stop the DMRG calculation early if needed
   custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
@@ -251,6 +203,7 @@ let
   # end
   # @show energies(Sz_observer)
   # @show maxlinkdim(ψ)
+  #***************************************************************************************************************
   
   
   # Measure local observables (one-point functions) after finish the DMRG simulation
