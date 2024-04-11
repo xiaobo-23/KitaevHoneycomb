@@ -5,6 +5,7 @@ using ITensors
 using MKL
 using TimerOutputs
 using LinearAlgebra
+import ITensors: energies
 
 include("src/kitaev_heisenberg/HoneycombLattice.jl")
 include("src/kitaev_heisenberg/Entanglement.jl")
@@ -19,19 +20,22 @@ OMP_NUM_THREADS = 8
 # Timing and profiling
 const time_machine = TimerOutput()
 
+
 # Defining a custom observer and make this struct a subtype of AbstractObserver
 mutable struct CustomObserver <: AbstractObserver
   ehistory::Vector{Float64}
+  ehistory_full::Vector{Float64}
   chi::Vector{Int64}            # Bond dimensions  
   etolerance::Float64
   last_energy::Float64
   minsweeps::Int64
-  # CustomObserver(etolerance=0.0) = new(Float64[], etolerance, 0.0, 0.0, 0, Int64[])
+  # CustomObserver(etolerance=0.0) = new(Float64[], Int64[], etolerance, 0.0, 0.0, 0)
 end
 
 function CustomObserver(; etolerance=1E-7, minsweeps=5)
   return CustomObserver(
     Float64[], 
+    Float64[],
     Int[], 
     etolerance, 
     0.0,
@@ -40,17 +44,28 @@ function CustomObserver(; etolerance=1E-7, minsweeps=5)
 end
 
 
+
 # Overloading the measure! method
 function ITensors.measure!(tmpObs::CustomObserver; kwargs...)
+  half_sweep = kwargs[:half_sweep]
   energy = kwargs[:energy]
   sweep = kwargs[:sweep]
   bond = kwargs[:bond]
+  psi = kwargs[:psi]
   outputlevel = kwargs[:outputlevel]
 
   if bond == 1
-    push!(tmpObs.ehistory, energy)
+    push!(tmpObs.ehistory_full, energy)
+  end
+
+  if half_sweep == 2
+    if bond == 1
+      push!(tmpObs.ehistory, energy)
+      push!(tmpObs.chi, maxlinkdim(psi))
+    end
   end
 end
+
 
 
 let
@@ -206,23 +221,24 @@ let
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
+  
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
-  
   # Measure the initial local observables (one-point functions)
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
+  
+  
   # Construct a custom observer and stop the DMRG calculation early if needed
   custom_observer = CustomObserver()
-
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
 
-
+  #***************************************************************************************************************
   # # Construct a DMRGobserver to measure local observables and stop the calculation early if needed
   # Sz_observer = DMRGObserver(["Sz"], sites, minsweeps=2, energy_tol = 1E-7)
   
@@ -235,8 +251,9 @@ let
   # end
   # @show energies(Sz_observer)
   # @show maxlinkdim(ψ)
-
   
+  
+  # Measure local observables (one-point functions) after finish the DMRG simulation
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Sy = expect(ψ, "iSy", sites = 1 : N)
@@ -329,18 +346,26 @@ let
   end
 
   # Print out several quantities of interest including the energy per site etc.
-  @show number_of_bonds, energy / number_of_bonds
-  @show N, energy / N
+  println("")
+  println("Visualize the optimization history of the energy and bond dimensions:")
+  @show custom_observer.ehistory_full
   @show custom_observer.ehistory
+  @show custom_observer.chi
+  # @show number_of_bonds, energy / number_of_bonds
+  # @show N, energy / N
+  
+
   println("")
   println("Eigenvalues of the plaquette operator:")
   @show W_operator_eigenvalues
   println("")
 
+
   print("")
   println("Eigenvalues of the loop operator(s):")
   @show y_loop_eigenvalues
   println("")
+
 
   println("")
   println("Eigenvalues of the twelve-point correlator near the first vacancy:")
@@ -354,7 +379,6 @@ let
     E₀ = inner(ψ', H, ψ)
     variance = H2 - E₀^2
   end
- 
   println("")
   @show E₀
   println("Variance of the energy is $variance")
@@ -369,6 +393,7 @@ let
   #   write(file, "E0", energy)
   #   write(file, "E0variance", variance)
   #   write(file, "Ehist", tmp_observer.ehistory)
+  #   write(file, "Bond", tmp_observer.chi)
   #   # write(file, "Entropy", SvN)
   #   write(file, "Sx0", Sx₀)
   #   write(file, "Sx",  Sx)
