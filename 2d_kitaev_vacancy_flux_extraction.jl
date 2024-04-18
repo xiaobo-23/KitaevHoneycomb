@@ -37,26 +37,38 @@ let
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx = Jy = Jz = 1.0
-  alpha = 0.001
+  alpha = 1.0
   h=0.0
   lambda_left  = 0.05
   lambda_right = 1.0 * lambda_left
   @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
 
   
-  # honeycomb lattice
+  # honeycomb lattice implemented in the ring ordering scheme
   x_direction_periodic = false
+  y_direction_twist = true
   if x_direction_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
+    @show length(lattice)
+    # @show lattice
   else
-    lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
+    if y_direction_twist
+      lattice = honeycomb_lattice_rings_right_twist(Nx, Ny; yperiodic=true)
+      @show length(lattice)
+      # @show lattice
+    else
+      lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
+      @show length(lattice)
+      # @show lattice
+    end
   end
-  # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
   number_of_bonds = length(lattice)
-  @show number_of_bonds
-  # @show lattice
+  # @show number_of_bonds
+
+  # honeycomb lattice implemented in the C-style ordering scheme
+  # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
   
-  
+
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
   lattice_sites   = Set{Int64}()
@@ -122,40 +134,48 @@ let
   
   # Add the string operators as perturbations in the left and right edges of the cylinder
   string_operators = Vector{String}([])
-  for index in 1 : 2 * Ny
-    push!(string_operators, "Z")
+  if y_direction_twist
+    string_operators = ["X", "X", "Z", "Z", "Z", "Z"]
+  else
+    for index in 1 : 2 * Ny
+      push!(string_operators, "Z")
+    end
   end
   @show string_operators
 
   
-  # Add the index of the pinning sites into a Matrix
-  pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
-  for index1 in 1 : size(pinning_sites, 1)
-    for index2 in 1 : 2 * Ny
-      pinning_sites[index1, index2] = 2 * (pinning_ptr[index1] - 1) * Ny + index2
-    end
-    @show pinning_sites[index1, :]
-  end
+  # # Add the index of the pinning sites into a Matrix
+  # pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
+  # for index1 in 1 : size(pinning_sites, 1)
+  #   for index2 in 1 : 2 * Ny
+  #     pinning_sites[index1, index2] = 2 * (pinning_ptr[index1] - 1) * Ny + index2
+  #   end
+  #   @show pinning_sites[index1, :]
+  # end
   
+  # # Add perturbation to the left of the vacancy
+  # if lambda_left > 1e-8
+  #   for index in 1 : Int(size(pinning_sites, 1) / 2)
+  #     @show index
+  #     os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
+  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+  #       string_operators[6], pinning_sites[index, 6]
+  #   end
+  # end
   
-  for index in 1 : Int(size(pinning_sites, 1) / 2)
-    @show index
-    os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
-      string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-      string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-      string_operators[6], pinning_sites[index, 6]
-  end
-  
-  
-  for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
-    @show index
-    os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
-      string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-      string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-      string_operators[6], pinning_sites[index, 6]
-  end
+  # # Add perturbation to the right of the vacancy
+  # if lambda_right > 1e-8
+  #   for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
+  #     @show index
+  #     os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
+  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+  #       string_operators[6], pinning_sites[index, 6]
+  #   end
+  # end 
 
-
+  
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
@@ -168,7 +188,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 5
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -249,22 +269,22 @@ let
   
   @timeit time_machine "loop operators" begin
     # Construct the loop indices in the direction with PBC
-    y_inds = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
-    y_loop_eigenvalues = Vector{Float64}(undef, size(y_inds)[1])
+    yloop_indices = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
+    yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
 
     
     # Compute eigenvalues of the loop operators in the direction with PBC.
-    for loop_index in 1 : size(y_inds)[1]
-      @show y_inds[loop_index, :]
+    for loop_index in 1 : size(yloop_indices)[1]
+      @show yloop_indices[loop_index, :]
       os_wl = OpSum()
-      os_wl += string_operators[1], y_inds[loop_index, 1], 
-        string_operators[2], y_inds[loop_index, 2], 
-        string_operators[3], y_inds[loop_index, 3], 
-        string_operators[4], y_inds[loop_index, 4], 
-        string_operators[5], y_inds[loop_index, 5], 
-        string_operators[6], y_inds[loop_index, 6]
+      os_wl += string_operators[1], yloop_indices[loop_index, 1], 
+        string_operators[2], yloop_indices[loop_index, 2], 
+        string_operators[3], yloop_indices[loop_index, 3], 
+        string_operators[4], yloop_indices[loop_index, 4], 
+        string_operators[5], yloop_indices[loop_index, 5], 
+        string_operators[6], yloop_indices[loop_index, 6]
       Wl = MPO(os_wl, sites)
-      y_loop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
+      yloop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
     end
   end
 
@@ -316,7 +336,7 @@ let
 
   print("")
   println("Eigenvalues of the loop operator(s):")
-  @show y_loop_eigenvalues
+  @show yloop_eigenvalues
   println("")
 
 
@@ -358,7 +378,7 @@ let
   #   write(file, "Sz",  Sz)
   #   # write(file, "Czz", zzcorr)
   #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", y_loop_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
   #   write(file, "OrderParameter", order_parameter)
   # end
 

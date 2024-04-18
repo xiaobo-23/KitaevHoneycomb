@@ -27,6 +27,36 @@ function LoopList(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, dire
 end
 
 
+function LoopList_RightTwist(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, direction:: String)
+    # '''
+    #     Use periodic boundary condition in y direction and therefore
+    #     the size of the output list is determined by the length and width of the cylinder
+    #     Nx: the number of unit cells in the x direction
+    #     Ny: the number of unit cells in the y direction
+    # '''
+
+    if ordering_scheme != "rings"
+        error("Ordering scheme not supported!")
+    end
+
+    if ordering_scheme == "rings" && direction == "y"
+        tmp_list = Matrix{Int64}(undef, input_Nx - 1, 2 * input_Ny)
+        for index1 in 1 : input_Nx - 1
+            for index2 in 1 : input_Ny
+                if index2 == 1
+                    tmp_list[index1, 2 * index2 - 1] = index2 + 2 * index1 * input_Ny
+                else
+                    tmp_list[index1, 2 * index2 - 1] = index2 + 2 * (index1 - 1) * input_Ny
+                end
+                tmp_list[index1, 2 * index2] = index2 + (2 * index1 - 1) * input_Ny
+            end
+        end
+    end     
+    @show tmp_list
+    return tmp_list
+end
+
+
 function PlaquetteList(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, PBC_in_x:: Bool)
     # '''
     #     Assume using periodic boundary condition in y direction 
