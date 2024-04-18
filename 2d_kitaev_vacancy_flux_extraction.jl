@@ -27,7 +27,7 @@ let
 
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 15
+  Nx_unit_cell = 12
   Ny_unit_cell = 3
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
@@ -39,9 +39,12 @@ let
   Jx = Jy = Jz = 1.0
   alpha = 1.0
   h=0.0
-  lambda_left  = 0.05
-  lambda_right = 1.0 * lambda_left
-  @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
+  @show Jx, Jy, Jz, alpha, h
+
+  # # Set up the parameters for the perturbation
+  # lambda_left  = 0.05
+  # lambda_right = 1.0 * lambda_left
+  # @show lambda_left, lambda_right
 
   
   # honeycomb lattice implemented in the ring ordering scheme
@@ -72,8 +75,8 @@ let
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
   lattice_sites   = Set{Int64}()
-  pinning_ptr = collect(1 : Nx_unit_cell)
-  deleteat!(pinning_ptr, 8); @show pinning_ptr
+  # pinning_ptr = collect(1 : Nx_unit_cell)
+  # deleteat!(pinning_ptr, 8); @show pinning_ptr
 
   
   # Construct the Hamiltonian using the OpSum system
@@ -188,7 +191,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 5
+  nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -244,7 +247,7 @@ let
   # normalize!(ψ)
   @timeit time_machine "plaquette operators" begin
     plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-    loop_inds = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+    loop_inds = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
     for index in 1 : size(loop_inds)[1]
       @show loop_inds[index, :]
     end
@@ -269,9 +272,8 @@ let
   
   @timeit time_machine "loop operators" begin
     # Construct the loop indices in the direction with PBC
-    yloop_indices = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y")
+    yloop_indices = LoopList_RightTwist(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
     yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
-
     
     # Compute eigenvalues of the loop operators in the direction with PBC.
     for loop_index in 1 : size(yloop_indices)[1]
@@ -290,6 +292,9 @@ let
 
 
   # Compute the eigenvalues of the order parameters near vacancies
+  # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
+  # need to genealize in the future to automatically generate the loop indices near vacancies
+
   @timeit time_machine "twelve-point correlator(s)" begin
     order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
     order_indices = Matrix{Int64}(undef, 1, 12)
@@ -318,6 +323,7 @@ let
     end
   end
 
+  
   # Print out several quantities of interest including the energy per site etc.
   println("")
   println("Visualize the optimization history of the energy and bond dimensions:")
