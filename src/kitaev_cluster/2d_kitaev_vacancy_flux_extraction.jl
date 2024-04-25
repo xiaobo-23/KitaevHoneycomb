@@ -57,9 +57,9 @@ let
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx = Jy = Jz = 1.0
-  alpha = 0.001
+  alpha = 1E-4
   h=0.0
-  lambda_left  = -0.1
+  lambda_left  = -0.03
   lambda_right = 1.0 * lambda_left
   @show Jx, Jy, Jz, alpha, lambda_left, lambda_right, h
 

@@ -27,7 +27,7 @@ let
 
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 12
+  Nx_unit_cell = 15
   Ny_unit_cell = 3
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
@@ -49,7 +49,8 @@ let
   
   # honeycomb lattice implemented in the ring ordering scheme
   x_direction_periodic = false
-  y_direction_twist = true
+  y_direction_twist = false
+
   if x_direction_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
     @show length(lattice)
@@ -135,18 +136,23 @@ let
   end
   # @show os
   
-  # Add the string operators as perturbations in the left and right edges of the cylinder
+  # Add the string operators as perturbations into the cylinder
   string_operators = Vector{String}([])
-  if y_direction_twist
-    string_operators = ["X", "X", "Z", "Z", "Z", "Z"]
-  else
-    for index in 1 : 2 * Ny
+  
+  for index in 1 : 2
+    if y_direction_twist
+      push!(string_operators, "X")
+    else
       push!(string_operators, "Z")
-    end
+    end 
+  end
+
+  for index in 3 : 2 * Ny
+    push!(string_operators, "Z")
   end
   @show string_operators
 
-  
+
   # # Add the index of the pinning sites into a Matrix
   # pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
   # for index1 in 1 : size(pinning_sites, 1)
@@ -191,7 +197,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 20
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -244,10 +250,16 @@ let
 
 
   # Compute the eigenvalues of all plaquette operators
+  # The plaquette operators are always six-point correlators
   # normalize!(ψ)
   @timeit time_machine "plaquette operators" begin
     plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-    loop_inds = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
+    
+    if y_direction_twist
+      loop_inds = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
+    else
+      loop_inds = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+    end
     for index in 1 : size(loop_inds)[1]
       @show loop_inds[index, :]
     end
@@ -270,21 +282,41 @@ let
   end
 
   
+  # Compute the eigenvalues of the loop operators 
+  # The loop operators depend on the width of the cylinder  
   @timeit time_machine "loop operators" begin
-    # Construct the loop indices in the direction with PBC
-    yloop_indices = LoopList_RightTwist(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
+    # Construct the loop indices along the y direction with/without y_direction_twist
+    if y_direction_twist
+      yloop_indices = LoopList_RightTwist(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
+    else
+      yloop_indices = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
+    end
     yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
     
     # Compute eigenvalues of the loop operators in the direction with PBC.
     for loop_index in 1 : size(yloop_indices)[1]
       @show yloop_indices[loop_index, :]
+      
       os_wl = OpSum()
+      # Construct the loop operator(s) along the y direction for three-leg cylinder
       os_wl += string_operators[1], yloop_indices[loop_index, 1], 
         string_operators[2], yloop_indices[loop_index, 2], 
         string_operators[3], yloop_indices[loop_index, 3], 
         string_operators[4], yloop_indices[loop_index, 4], 
         string_operators[5], yloop_indices[loop_index, 5], 
         string_operators[6], yloop_indices[loop_index, 6]
+
+      # # Construct the loop operator(s) along the y direction for four-leg cylinder
+      # os_wl += string_operators[1], yloop_indices[loop_index, 1], 
+      #   string_operators[2], yloop_indices[loop_index, 2], 
+      #   string_operators[3], yloop_indices[loop_index, 3], 
+      #   string_operators[4], yloop_indices[loop_index, 4], 
+      #   string_operators[5], yloop_indices[loop_index, 5], 
+      #   string_operators[6], yloop_indices[loop_index, 6],
+      #   string_operators[7], yloop_indices[loop_index, 7],
+      #   string_operators[8], yloop_indices[loop_index, 8]
+
+      
       Wl = MPO(os_wl, sites)
       yloop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
     end
@@ -366,27 +398,27 @@ let
 
   @show time_machine
   
-  # h5open("data/2d_kitaev_honeycomb_lattice_pbc_rings_L$(Nx)W$(Ny)_FM_test.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", tmp_observer.ehistory)
-  #   write(file, "Bond", tmp_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("./data/test/BC/2d_kitaev_FM_L$(Nx)W$(Ny)_epsilon1E-8.h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
