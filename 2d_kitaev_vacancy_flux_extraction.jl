@@ -27,7 +27,7 @@ let
 
   # Set up the parameters for the lattice
   # Number of unit cells in x and y directions
-  Nx_unit_cell = 15
+  Nx_unit_cell = 16
   Ny_unit_cell = 3
   Nx = 2 * Nx_unit_cell
   Ny = Ny_unit_cell
@@ -41,15 +41,15 @@ let
   h=0.0
   @show Jx, Jy, Jz, alpha, h
 
-  # # Set up the parameters for the perturbation
-  # lambda_left  = 0.05
-  # lambda_right = 1.0 * lambda_left
-  # @show lambda_left, lambda_right
+  # Set up the parameters for the perturbation
+  lambda_left  = 0.05
+  lambda_right = 1.0 * lambda_left
+  @show lambda_left, lambda_right
 
   
   # honeycomb lattice implemented in the ring ordering scheme
   x_direction_periodic = false
-  y_direction_twist = false
+  y_direction_twist = true
 
   if x_direction_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
@@ -76,8 +76,12 @@ let
   # Select the position(s) of the vacancies
   sites_to_delete = Set{Int64}([44])
   lattice_sites   = Set{Int64}()
-  # pinning_ptr = collect(1 : Nx_unit_cell)
-  # deleteat!(pinning_ptr, 8); @show pinning_ptr
+  
+  # Add pinning fields to the lattice in a symmetric format
+  pinning_seeds = collect(1 : Nx_unit_cell)
+  deleteat!(pinning_seeds, 16)
+  deleteat!(pinning_seeds, 8) 
+  @show pinning_seeds
 
   
   # Construct the Hamiltonian using the OpSum system
@@ -153,36 +157,43 @@ let
   @show string_operators
 
 
-  # # Add the index of the pinning sites into a Matrix
-  # pinning_sites = Matrix{Int64}(undef, length(pinning_ptr), 2 * Ny)
-  # for index1 in 1 : size(pinning_sites, 1)
-  #   for index2 in 1 : 2 * Ny
-  #     pinning_sites[index1, index2] = 2 * (pinning_ptr[index1] - 1) * Ny + index2
-  #   end
-  #   @show pinning_sites[index1, :]
-  # end
+  # Add the index of the pinning sites into a Matrix
+  pinning_sites = Matrix{Int64}(undef, length(pinning_seeds), 2 * Ny)
+  for index1 in 1 : length(pinning_seeds)
+    pinning_sites[index1, 1] = pinning_seeds[index1] * 2 * Ny + 1
+    pinning_sites[index1, 2] = (2 * pinning_seeds[index1] - 1) * Ny + 1
+    pinning_sites[index1, 3] = pinning_sites[index1, 2] - 2
+    pinning_sites[index1, 4] = pinning_sites[index1, 2] - 1
+    pinning_sites[index1, 5] = pinning_sites[index1, 2] + 1
+    pinning_sites[index1, 6] = pinning_sites[index1, 2] + 2
+
+    # for index2 in 1 : 2 * Ny
+    #   pinning_sites[index1, index2] = 2 * (pinning_seeds[index1] - 1) * Ny + index2 + 1
+    # end
+    @show pinning_sites[index1, :]
+  end
   
-  # # Add perturbation to the left of the vacancy
-  # if lambda_left > 1e-8
-  #   for index in 1 : Int(size(pinning_sites, 1) / 2)
-  #     @show index
-  #     os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
-  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #       string_operators[6], pinning_sites[index, 6]
-  #   end
-  # end
+  # Add perturbation to the left of the vacancy
+  if lambda_left > 1e-8
+    for index in 1 : Int(size(pinning_sites, 1) / 2)
+      @show index, lambda_left
+      os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
+        string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+        string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+        string_operators[6], pinning_sites[index, 6]
+    end
+  end
   
-  # # Add perturbation to the right of the vacancy
-  # if lambda_right > 1e-8
-  #   for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
-  #     @show index
-  #     os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
-  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #       string_operators[6], pinning_sites[index, 6]
-  #   end
-  # end 
+  # Add perturbation to the right of the vacancy
+  if lambda_right > 1e-8
+    for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
+      @show index, lambda_right
+      os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
+        string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
+        string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
+        string_operators[6], pinning_sites[index, 6]
+    end
+  end 
 
   
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
