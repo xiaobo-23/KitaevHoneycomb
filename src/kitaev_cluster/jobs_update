@@ -2,7 +2,7 @@
 
 mkdir data
 
-for field in $(seq 0  0.001  0.025)
+for field in $(seq 0  0.001  0.03)
 do 
     mkdir h$field
     cp 2d_kitaev_vacancy_flux_extraction.jl h$field/2d_kitaev_vacancy_flux_extraction.jl
@@ -20,7 +20,7 @@ done
 python3 Generate_disBatch_Input_File.py 
     
 # Job submission on rusty
-sbatch -n 26 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
+sbatch -n 31 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
 
 # sbatch -n 250 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev2
 

@@ -18,7 +18,7 @@ mutable struct CustomObserver <: AbstractObserver
   end
   
   
-  function CustomObserver(; etolerance=1E-7, minsweeps=10)
+  function CustomObserver(; etolerance=1E-9, minsweeps=2)
     return CustomObserver(
       Float64[], 
       Float64[],
@@ -62,7 +62,7 @@ mutable struct CustomObserver <: AbstractObserver
     # @show abs(energy - tmpObs.last_energy)
     # @show tmpObs.etolerance
   
-    println("Updating the last energy to $energy  after sweep $sweep")
+    # println("Updating the last energy to $energy  after sweep $sweep")
     tmpObs.last_energy = energy
     return false
   end

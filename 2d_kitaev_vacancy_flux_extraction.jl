@@ -41,12 +41,15 @@ let
   h=0.0
   @show Jx, Jy, Jz, alpha, h
 
-  # Set up the parameters for the perturbation
+  # Set up the perturbation strength for loop operators
   lambda_left  = 0.05
   lambda_right = 1.0 * lambda_left
-  @show lambda_left, lambda_right
 
-  
+  # The strength of the plaquette perturbation
+  eta = 0.5 * abs(lambda_left) 
+  @show lambda_left, lambda_right, eta
+
+
   # honeycomb lattice implemented in the ring ordering scheme
   x_direction_periodic = false
   y_direction_twist = true
@@ -159,22 +162,24 @@ let
 
   # Add the index of the pinning sites into a Matrix
   pinning_sites = Matrix{Int64}(undef, length(pinning_seeds), 2 * Ny)
-  for index1 in 1 : length(pinning_seeds)
-    pinning_sites[index1, 1] = pinning_seeds[index1] * 2 * Ny + 1
-    pinning_sites[index1, 2] = (2 * pinning_seeds[index1] - 1) * Ny + 1
-    pinning_sites[index1, 3] = pinning_sites[index1, 2] - 2
-    pinning_sites[index1, 4] = pinning_sites[index1, 2] - 1
-    pinning_sites[index1, 5] = pinning_sites[index1, 2] + 1
-    pinning_sites[index1, 6] = pinning_sites[index1, 2] + 2
+  for index in eachindex(pinning_seeds)
+    pinning_sites[index, 1] = pinning_seeds[index] * 2 * Ny + 1
+    pinning_sites[index, 2] = (2 * pinning_seeds[index] - 1) * Ny + 1
+    pinning_sites[index, 3] = pinning_sites[index, 2] - 2
+    pinning_sites[index, 4] = pinning_sites[index, 2] + 1
+    pinning_sites[index, 5] = pinning_sites[index, 2] - 1
+    pinning_sites[index, 6] = pinning_sites[index, 2] + 2
 
     # for index2 in 1 : 2 * Ny
     #   pinning_sites[index1, index2] = 2 * (pinning_seeds[index1] - 1) * Ny + index2 + 1
     # end
-    @show pinning_sites[index1, :]
+    println("")
+    @show pinning_sites[index, :]
+    println("")
   end
   
   # Add perturbation to the left of the vacancy
-  if lambda_left > 1e-8
+  if lambda_left > 1E-8
     for index in 1 : Int(size(pinning_sites, 1) / 2)
       @show index, lambda_left
       os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
@@ -183,9 +188,10 @@ let
         string_operators[6], pinning_sites[index, 6]
     end
   end
-  
+
+
   # Add perturbation to the right of the vacancy
-  if lambda_right > 1e-8
+  if lambda_right > 1E-8
     for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
       @show index, lambda_right
       os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
@@ -194,6 +200,25 @@ let
         string_operators[6], pinning_sites[index, 6]
     end
   end 
+
+
+  # Add the plaquette perturbation to the cylinder
+  plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
+  if y_direction_twist
+    plaquette_indices = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  else
+    plaquette_indices = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  end
+
+  if eta > 1E-8
+    for index in 1 : size(plaquette_indices, 1)
+      @show plaquette_indices[index, :]
+      os .+= -1.0 * eta, plaquette_operator[1], plaquette_indices[index, 1], 
+        plaquette_operator[2], plaquette_indices[index, 2], plaquette_operator[3], plaquette_indices[index, 3], 
+        plaquette_operator[4], plaquette_indices[index, 4], plaquette_operator[5], plaquette_indices[index, 5], 
+        plaquette_operator[6], plaquette_indices[index, 6]
+    end
+  end
 
   
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -208,7 +233,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 20
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-8]
   eigsolve_krylovdim = 50
@@ -264,30 +289,19 @@ let
   # The plaquette operators are always six-point correlators
   # normalize!(ψ)
   @timeit time_machine "plaquette operators" begin
-    plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-    
-    if y_direction_twist
-      loop_inds = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
-    else
-      loop_inds = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
-    end
-    for index in 1 : size(loop_inds)[1]
-      @show loop_inds[index, :]
-    end
-    W_operator_eigenvalues = Vector{Float64}(undef, size(loop_inds)[1])
-    
+    W_operator_eigenvalues = Vector{Float64}(undef, size(plaquette_indices, 1))
     
     # Compute the eigenvalues of the plaquette operator
-    for loop_index in 1 : size(loop_inds)[1]
+    for index in 1 : size(plaquette_indices, 1)
       os_w = OpSum()
-      os_w += plaquette_operator[1], loop_inds[loop_index, 1], 
-        plaquette_operator[2], loop_inds[loop_index, 2], 
-        plaquette_operator[3], loop_inds[loop_index, 3], 
-        plaquette_operator[4], loop_inds[loop_index, 4], 
-        plaquette_operator[5], loop_inds[loop_index, 5], 
-        plaquette_operator[6], loop_inds[loop_index, 6]
+      os_w += plaquette_operator[1], plaquette_indices[index, 1], 
+        plaquette_operator[2], plaquette_indices[index, 2], 
+        plaquette_operator[3], plaquette_indices[index, 3], 
+        plaquette_operator[4], plaquette_indices[index, 4], 
+        plaquette_operator[5], plaquette_indices[index, 5], 
+        plaquette_operator[6], plaquette_indices[index, 6]
       W = MPO(os_w, sites)
-      W_operator_eigenvalues[loop_index] = -1.0 * real(inner(ψ', W, ψ))
+      W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
       # @show inner(ψ', W, ψ) / inner(ψ', ψ)
     end
   end
@@ -409,27 +423,27 @@ let
 
   @show time_machine
   
-  h5open("./data/test/BC/2d_kitaev_FM_L$(Nx)W$(Ny)_epsilon1E-8.h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("./data/test/BC/2d_kitaev_FM_L$(Nx)W$(Ny)_epsilon1E-8.h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end

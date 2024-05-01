@@ -15,8 +15,8 @@ def generate_input_file(input_field, task_file):
     
 
 def main():
-    field_strength = np.arange(0, 0.026, 0.001)
-    field_strength = np.around(field_strength, decimals=3)
+    field_strength = np.arange(0, 0.031, 0.001)
+    field_strength = np.around(field_strength, decimals = 3)
 
     submit_file = open("kitaev", "a")
     for tmp in field_strength:

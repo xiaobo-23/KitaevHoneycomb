@@ -169,6 +169,48 @@ function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 end
 
 
+function honeycomb_lattice_rings_right_twist(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+	"""
+	  Using the ring ordering scheme
+	  Nx needs to be an even number
+	"""
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? -1 : trunc(Int, Nx / 2))
+	@show Nbond
+	
+	latt = Lattice(undef, Nbond)
+	b = 0
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+		@show n, x, y, b
+  
+	  	# horizontal bonds
+		if mod(x, 2) == 0 && x < Nx
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+  
+		# bonds to accomodate simga_x * sigma_x and sigma_y * sigma_y interactions
+		if Ny > 1
+			if mod(x, 2) == 1
+				latt[b += 1] = LatticeBond(n, n + Ny)
+				# twisted boundary condition along the y direction
+				if y == 1
+					if x != 1
+						latt[b += 1] = LatticeBond(n, n - 1)
+					end
+				else
+					latt[b += 1] = LatticeBond(n, n + Ny - 1)
+				end 
+			end
+		end
+	# @show latt
+	end
+	return latt
+end
+
+
 function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   """
 	Using the C-style ordering scheme
@@ -190,7 +232,7 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 		# x-direction bonds for A sublattice
 		if mod(x, 2) == 0 && x < Nx
 			latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
-			@show n, x, y, latt[b]
+			@show n, x, y, b
 		end
 
 		# bonds for B sublattice
@@ -209,7 +251,6 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 			end
 		end
 	end
-
 	# @show latt
 	return latt
 end
