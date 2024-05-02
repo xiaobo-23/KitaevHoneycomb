@@ -42,11 +42,11 @@ let
   @show Jx, Jy, Jz, alpha, h
 
   # Set up the perturbation strength for loop operators
-  lambda_left  = 0.05
+  lambda_left  = -0.1
   lambda_right = 1.0 * lambda_left
 
   # The strength of the plaquette perturbation
-  eta = 0.5 * abs(lambda_left) 
+  eta = abs(lambda_left) 
   @show lambda_left, lambda_right, eta
 
 
@@ -134,7 +134,7 @@ let
   # The magnetic field breaks integrability 
   # @show length(lattice_sites)
   # @show lattice_sites
-  if h > 1E-8
+  if h > 1e-8
     for tmp_site in lattice_sites
       os .+= -1.0 * h, "Sx", tmp_site
       os .+= -1.0 * h, "Sy", tmp_site
@@ -173,9 +173,9 @@ let
     # for index2 in 1 : 2 * Ny
     #   pinning_sites[index1, index2] = 2 * (pinning_seeds[index1] - 1) * Ny + index2 + 1
     # end
-    println("")
-    @show pinning_sites[index, :]
-    println("")
+    # println("")
+    # @show pinning_sites[index, :]
+    # println("")
   end
   
   # Add perturbation to the left of the vacancy
@@ -212,11 +212,17 @@ let
 
   if eta > 1E-8
     for index in 1 : size(plaquette_indices, 1)
-      @show plaquette_indices[index, :]
-      os .+= -1.0 * eta, plaquette_operator[1], plaquette_indices[index, 1], 
+      if 44 ∉ plaquette_indices[index, :]
+        println("")
+        @show plaquette_indices[index, :]
+        println("")
+        # @show size(os)
+
+        os .+= -1.0 * eta, plaquette_operator[1], plaquette_indices[index, 1], 
         plaquette_operator[2], plaquette_indices[index, 2], plaquette_operator[3], plaquette_indices[index, 3], 
         plaquette_operator[4], plaquette_indices[index, 4], plaquette_operator[5], plaquette_indices[index, 5], 
         plaquette_operator[6], plaquette_indices[index, 6]
+      end 
     end
   end
 
