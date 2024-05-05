@@ -46,6 +46,7 @@ let
   lambda_right = 1.0 * lambda_left
 
   # The strength of the plaquette perturbation
+  # Use a positive sign here to lower the energy, given the plaquette operator is negative
   eta = abs(lambda_left) 
   @show lambda_left, lambda_right, eta
 
@@ -201,7 +202,7 @@ let
     end
   end 
 
-
+  
   # Add the plaquette perturbation to the cylinder
   plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
   if y_direction_twist
@@ -210,19 +211,43 @@ let
     plaquette_indices = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
   end
 
-  if eta > 1E-8
-    for index in 1 : size(plaquette_indices, 1)
-      if 44 ∉ plaquette_indices[index, :]
-        println("")
-        @show plaquette_indices[index, :]
-        println("")
-        # @show size(os)
 
-        os .+= -1.0 * eta, plaquette_operator[1], plaquette_indices[index, 1], 
-        plaquette_operator[2], plaquette_indices[index, 2], plaquette_operator[3], plaquette_indices[index, 3], 
-        plaquette_operator[4], plaquette_indices[index, 4], plaquette_operator[5], plaquette_indices[index, 5], 
-        plaquette_operator[6], plaquette_indices[index, 6]
-      end 
+  # Remove plaquette perturbations near the vacancy
+  println("The size of the orginal list of plaquettes:")
+  @show size(plaquette_indices)
+  println("")
+  tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(13, 30, step = 1)), :]
+  println("The size of the truncated list of plaquettes:")
+  @show size(tmp_plaquette_indices)
+  println("")
+
+  if eta > 1E-8
+    for index in 1 : size(tmp_plaquette_indices, 1)
+      println("")
+      @show tmp_plaquette_indices[index, :]
+      println("")
+
+      os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
+      plaquette_operator[2], tmp_plaquette_indices[index, 2], 
+      plaquette_operator[3], tmp_plaquette_indices[index, 3], 
+      plaquette_operator[4], tmp_plaquette_indices[index, 4], 
+      plaquette_operator[5], tmp_plaquette_indices[index, 5], 
+      plaquette_operator[6], tmp_plaquette_indices[index, 6]
+
+      # Only remove three plaquette perturbations near the vacancy
+      # if 44 ∉ plaquette_indices[index, :]
+      #   # println("")
+      #   # @show plaquette_indices[index, :]
+      #   # println("")
+      #   # @show size(os)
+
+      #   os .+= eta, plaquette_operator[1], plaquette_indices[index, 1], 
+      #   plaquette_operator[2], plaquette_indices[index, 2], 
+      #   plaquette_operator[3], plaquette_indices[index, 3], 
+      #   plaquette_operator[4], plaquette_indices[index, 4], 
+      #   plaquette_operator[5], plaquette_indices[index, 5], 
+      #   plaquette_operator[6], plaquette_indices[index, 6]
+      # end 
     end
   end
 
