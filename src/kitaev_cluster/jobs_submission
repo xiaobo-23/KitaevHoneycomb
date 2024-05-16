@@ -1,0 +1,63 @@
+#!/bin/bash
+
+lambda_array=(0.05  0.08  0.1)
+lambda_left=(0.05  0.05  -0.05  -0.05  0.08  0.08  -0.08  -0.08  0.1  0.1  -0.1  -0.1)
+lambda_right=(0.05  -0.05  0.05  -0.05  0.08  -0.08  0.08  -0.08  0.1  -0.1  0.1  -0.1)
+configuration=("WL+1_WR+1/" "WL+1_WR-1/" "WL-1_WR+1/" "WL-1_WR-1/")
+
+
+# Create the directories for different lambda values, and perturbation configurations
+for index1 in ${!lambda_array[@]}
+do
+    mkdir lambda${lambda_array[index1]}
+    cd lambda${lambda_array[index1]}
+
+    for index2 in ${!configuration[@]}
+    do 
+        mkdir ${configuration[$index2]}
+        cd ${configuration[$index2]}
+
+        index=$((index1*4+index2))
+
+        cp ../../2d_kitaev_vacancy_flux_extraction.jl 2d_kitaev_vacancy_flux_extraction.jl
+        cp ../../CustomObserver.jl  CustomObserver.jl
+        cp ../../HoneycombLattice.jl  HoneycombLattice.jl
+        cp ../../TopologicalLoops.jl  TopologicalLoops.jl
+        cp ../../Entanglement.jl  Entanglement.jl
+        cp ../../Generate_disBatch_Input_File.py  Generate_disBatch_Input_File.py
+
+        # Linux version
+        sed -i "s/lambda_left=0/lambda_left=${lambda_left[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
+        sed -i "s/lambda_right=0/lambda_right=${lambda_right[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
+        
+        # # MacOS version
+        # sed -i "" "s/lambda_left=0/lambda_left=${lambda_left[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
+        # sed -i "" "s/lambda_right=0/lambda_right=${lambda_right[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
+
+        mkdir data
+        for field in $(seq 0  0.001  0.029)
+        do 
+            mkdir h$field
+            cp 2d_kitaev_vacancy_flux_extraction.jl  h$field/2d_kitaev_vacancy_flux_extraction.jl
+            
+            cd h$field
+                # # Linux version
+                sed -i "s/h=0.0/h=$field/g" 2d_kitaev_vacancy_flux_extraction.jl
+                
+                # # MacOS version
+                # sed -i "" "s/h=0.0/h=$field/g" 2d_kitaev_honeycomb.jl
+            cd ..  
+        done
+
+        # Generate the input file to use disBatch
+        python3 Generate_disBatch_Input_File.py 
+            
+        # Job submission on rusty
+        sbatch -n 30 -c 8 -t 7-0:0:0 -p ccq --constraint=rome disBatch kitaev
+        
+        cd ..
+    done
+
+
+    cd ..
+done

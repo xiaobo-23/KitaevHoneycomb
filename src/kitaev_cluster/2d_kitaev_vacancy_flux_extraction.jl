@@ -37,17 +37,20 @@ let
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx = Jy = Jz = 1.0
-  alpha = 1.0
+  alpha = 1E-4
   h=0.0
   @show Jx, Jy, Jz, alpha, h
 
   # Set up the perturbation strength for loop operators
-  lambda_left  = 0.05
-  lambda_right = 1.0 * lambda_left
+  # lambda_left  = -0.1
+  # lambda_right = 1.0 * lambda_left
+  lambda_left=0
+  lambda_right=0
 
+  
   # The strength of the plaquette perturbation
   # Use a positive sign here to lower the energy, given the plaquette operator is negative
-  eta = abs(lambda_left) 
+  eta = 0.1
   @show lambda_left, lambda_right, eta
 
 
@@ -272,7 +275,6 @@ let
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
-  
   # Measure the initial local observables (one-point functions)
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
@@ -325,6 +327,7 @@ let
     
     # Compute the eigenvalues of the plaquette operator
     for index in 1 : size(plaquette_indices, 1)
+      @show plaquette_indices[index, :]
       os_w = OpSum()
       os_w += plaquette_operator[1], plaquette_indices[index, 1], 
         plaquette_operator[2], plaquette_indices[index, 2], 
@@ -455,27 +458,27 @@ let
 
   @show time_machine
   
-  # h5open("./data/test/BC/2d_kitaev_FM_L$(Nx)W$(Ny)_epsilon1E-8.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
