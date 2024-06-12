@@ -6,16 +6,16 @@ using MKL
 using TimerOutputs
 using LinearAlgebra
 import ITensors: energies
-include("src/kitaev_heisenberg/HoneycombLattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
-include("src/kitaev_heisenberg/CustomObserver.jl")
+include("../HoneycombLattice.jl")
+include("../Entanglement.jl")
+include("../TopologicalLoops.jl")
+include("../CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
-MKL_NUM_THREADS = 8
-OPENBLAS_NUM_THREADS = 8
-OMP_NUM_THREADS = 8
+MKL_NUM_THREADS = 6
+OPENBLAS_NUM_THREADS = 6
+OMP_NUM_THREADS = 6
 
 # Timing and profiling
 const time_machine = TimerOutput()
@@ -194,7 +194,7 @@ let
   # Add perturbation to the left of the vacancy
   println("")
   println("Adding loop perturbations to the left of the vacancy:")
-  if lambda_left > 1E-8
+  if abs(lambda_left) > 1E-8
     for index in 1 : Int(size(pinning_sites, 1) / 2)
       @show index, lambda_left
       os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
@@ -208,7 +208,7 @@ let
   # Add perturbation to the right of the vacancy
   println("")
   println("Adding loop perturbations to the right of the vacancy:")
-  if lambda_right > 1E-8
+  if abs(lambda_right) > 1E-8
     for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
       @show index, lambda_right
       os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
@@ -227,7 +227,6 @@ let
   else
     plaquette_indices = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
   end
-
 
   # # Remove plaquette perturbations near the vacancy for TBC
   # println("The size of the orginal list of plaquettes:")
@@ -273,25 +272,26 @@ let
   println("The size of the orginal list of plaquettes:")
   @show size(plaquette_indices)
   println("")
-  tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(16, 27, step = 1)), :]
+  # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(16, 27, step = 1)), :]
+  tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [20, 21, 23]), :]
   println("The size of the truncated list of plaquettes:")
   @show size(tmp_plaquette_indices)
   println("")
 
-  if eta > 1E-8
-    for index in 1 : size(tmp_plaquette_indices, 1)
-      println("")
-      @show tmp_plaquette_indices[index, :]
-      println("")
+  # if eta > 1E-8
+  #   for index in 1 : size(tmp_plaquette_indices, 1)
+  #     println("")
+  #     @show tmp_plaquette_indices[index, :]
+  #     println("")
 
-      os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
-      plaquette_operator[2], tmp_plaquette_indices[index, 2], 
-      plaquette_operator[3], tmp_plaquette_indices[index, 3], 
-      plaquette_operator[4], tmp_plaquette_indices[index, 4], 
-      plaquette_operator[5], tmp_plaquette_indices[index, 5], 
-      plaquette_operator[6], tmp_plaquette_indices[index, 6]
-    end
-  end
+  #     os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
+  #     plaquette_operator[2], tmp_plaquette_indices[index, 2], 
+  #     plaquette_operator[3], tmp_plaquette_indices[index, 3], 
+  #     plaquette_operator[4], tmp_plaquette_indices[index, 4], 
+  #     plaquette_operator[5], tmp_plaquette_indices[index, 5], 
+  #     plaquette_operator[6], tmp_plaquette_indices[index, 6]
+  #   end
+  # end
 
   
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -306,9 +306,9 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
+  nsweeps = 30
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
-  cutoff  = [1E-8]
+  cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -496,27 +496,27 @@ let
 
   @show time_machine
   
-  # h5open("./data/test/BC/2d_kitaev_FM_L$(Nx)W$(Ny)_epsilon1E-8.h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
