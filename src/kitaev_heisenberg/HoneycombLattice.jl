@@ -211,6 +211,69 @@ function honeycomb_lattice_rings_right_twist(Nx::Int, Ny::Int; yperiodic=false):
 end
 
 
+
+## 07/23/2024
+function honeycomb_lattice_rings_reorder(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+	"""
+		Using the ring ordering scheme
+		Nx needs to be an even number
+	"""
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	# @show Nbond
+  
+  	latt = Lattice(undef, Nbond)
+  	b = 0
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		if mod(x, 2) == 0
+			seed_position = Ny - mod(trunc(Int, x / 2) - 1, Ny)
+			y = mod(seed_position + mod(n - 1, Ny), Ny)
+			if y == 0
+				y = Ny
+			end
+			# @show n, x, y, seed_position
+		elseif mod(x, 2) == 1 && x > 1 
+			seed_position = Ny - mod(trunc(Int, (x - 1) / 2) - 1, Ny)
+			y = mod(seed_position + mod(n - 1, Ny), Ny)
+			if y == 0
+				y = Ny
+			end
+			# @show n, x, y, seed_position
+		else
+			y = mod(n - 1, Ny) + 1
+			# @show n, x, y
+		end
+
+		# x-direction bonds for A sublattice
+		if mod(x, 2) == 0 && x < Nx
+			@show n, n + Ny
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+
+		# bonds for B sublattice
+		if Ny > 1
+			if mod(x, 2) == 1 && x < Nx
+				@show n, n + Ny
+				latt[b += 1] = LatticeBond(n, n + Ny)
+				if n == Ny || mod(n - Ny, 2 * Ny) == 0
+					@show n, n + 1
+					latt[b += 1] = LatticeBond(n, n + 1)
+				else
+					@show n, n + Ny + 1
+					latt[b += 1] = LatticeBond(n, n + Ny + 1)
+				end
+			end
+		end
+	# @show latt
+	end
+
+	return latt
+end
+
+
+
 function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   """
 	Using the C-style ordering scheme

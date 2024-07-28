@@ -99,6 +99,46 @@ function PlaquetteList(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String,
 end
 
 
+function PlaquetteListReordering(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, PBC_in_x:: Bool, input_seeds:: Array{Int64, 1})
+    # '''
+    #     Assume using periodic boundary condition in y direction 
+    #     Implement the list of plaquettes for open boundary condition in x direction
+    #     Nx: the number of unit cells in the x direction
+    #     Ny: the number of unit cells in the y direction
+    # '''
+
+    if ordering_scheme != "rings"
+        error("Ordering scheme not supported!")
+    end
+
+    if ordering_scheme == "rings" && PBC_in_x == false
+        number_of_plaquettes = (input_Nx - 1) * input_Ny
+        tmp_list = Matrix{Int64}(undef, number_of_plaquettes, 6)
+
+        for index in 1 : number_of_plaquettes
+            coordinate = input_seeds[index]
+            tmp_list[index, 1] = coordinate
+            tmp_list[index, 2] = coordinate + input_Ny
+            tmp_list[index, 3] = coordinate + 2 * input_Ny
+            if coordinate == input_Ny || mod(coordinate - input_Ny, 2 * input_Ny) == 0
+                tmp_list[index, 4] = coordinate + 1 
+                tmp_list[index, 5] = coordinate + input_Ny + 1
+                tmp_list[index, 6] = coordinate + 2 * input_Ny + 1
+            else
+                tmp_list[index, 4] = coordinate + input_Ny + 1 
+                tmp_list[index, 5] = coordinate + 2 * input_Ny + 1
+                tmp_list[index, 6] = coordinate + 3 * input_Ny + 1
+            end 
+            
+        end
+    elseif ordering_scheme == "rings" && PBC_in_x == true
+       error("Periodic boundary condition in x direction needs to be implemented!")
+    end     
+
+    return tmp_list
+end
+
+
 function PlaquetteList_RightTiwst(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, PBC_in_x:: Bool)
     # '''
     #     Assume using periodic boundary condition in y direction 
