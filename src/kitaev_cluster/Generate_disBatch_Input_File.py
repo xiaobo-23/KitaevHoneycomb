@@ -10,7 +10,7 @@ def generate_input_file(input_field, task_file):
 
     folder_name = "h" + "{:.3f}".format(input_field) + "/"
     task_file.write("cd " + folder_name \
-        + " &&  julia --threads=1 2d_kitaev_vacancy_reordering_W3.jl" + " &> kitaev_honeycomb_vacancy" \
+        + " &&  julia --threads=1 2d_kitaev_vacancy_flux_extraction_tbc.jl" + " &> kitaev_honeycomb_vacancy" \
         + "{:.3f}".format(input_field) + ".log" + "\n")
     
 
