@@ -43,7 +43,7 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = Jy = Jz = 1.0
+  Jx = Jy = Jz = -1.0
   alpha = 1E-4
   h=0.0
 
@@ -239,7 +239,7 @@ let
   # println("")
 
   if eta > 1E-8
-    for index in 1 : size(tmp_plaquette_indices, 1)
+    for index in 1 : size(plaquette_indices, 1)
       # println("")
       # @show tmp_plaquette_indices[index, :]
       # println("")

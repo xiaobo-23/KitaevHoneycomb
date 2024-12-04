@@ -1,12 +1,15 @@
 # Simulate the 2d Kitaev model on a honeycomb lattice 
 # Introducing vacancies, magnetic field, string and plaquette operators
 
+
 using HDF5
 using ITensors
+using ITensorMPS
 using MKL
 using TimerOutputs
 using LinearAlgebra
 import ITensors: energies
+
 
 include("src/kitaev_heisenberg/HoneycombLattice.jl")
 include("src/kitaev_heisenberg/Entanglement.jl")
@@ -19,8 +22,10 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
+
 # Timing and profiling
 const time_machine = TimerOutput()
+
 
 let
   # Monitor the number of threads used by BLAS and LAPACK
@@ -309,7 +314,8 @@ let
   
   # Construct a custom observer and stop the DMRG calculation early if needed
   custom_observer = CustomObserver()
-  @show custom_observer.etolerance
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  @show custom_observer.energy_tol
   @show custom_observer.minsweeps
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)

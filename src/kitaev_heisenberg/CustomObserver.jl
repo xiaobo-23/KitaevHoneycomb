@@ -4,7 +4,8 @@
 # Using early stopping to stop the calculation when the energy converges 
 
 using ITensors
-using ITensors: energies
+using ITensorMPS
+# using ITensors: energies
 
 # Defining a custom observer and make this struct a subtype of AbstractObserver
 mutable struct CustomObserver <: AbstractObserver
@@ -18,20 +19,19 @@ mutable struct CustomObserver <: AbstractObserver
   end
   
   
-  function CustomObserver(; etolerance=1E-8, minsweeps=2)
-    return CustomObserver(
-      Float64[], 
-      Float64[],
-      Int[], 
-      etolerance, 
-      1000.0,
-      minsweeps,
-    )
-  end
-  
+  # function CustomObserver(; etolerance=1E-8, minsweeps=2)
+  #   return CustomObserver(
+  #     Float64[], 
+  #     Float64[],
+  #     Int[], 
+  #     etolerance, 
+  #     1000.0,
+  #     minsweeps,
+  #   )
+  # end
   
   # Overloading the measure! method
-  function ITensors.measure!(tmpObs::CustomObserver; kwargs...)
+  function ITensorMPS.measure!(tmpObs::DMRGObserver; kwargs...)
     half_sweep = kwargs[:half_sweep]
     energy = kwargs[:energy]
     sweep = kwargs[:sweep]
@@ -52,10 +52,10 @@ mutable struct CustomObserver <: AbstractObserver
   end
   
   
-  function ITensors.checkdone!(tmpObs::CustomObserver; kwargs...)
+  function ITensorMPS.checkdone!(tmpObs::DMRGObserver; kwargs...)
     sweep = kwargs[:sweep]
     energy = kwargs[:energy]  
-    if abs(energy - tmpObs.last_energy) < tmpObs.etolerance
+    if abs(energy - tmpObs.last_energy) < tmpObs.energy_tol
       println("Stopping DRMG after sweep $sweep: energy converged to $energy")
       return true
     end
