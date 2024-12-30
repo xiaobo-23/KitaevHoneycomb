@@ -1,20 +1,15 @@
 # Simulate the 2d Kitaev model on a honeycomb lattice 
 # Introducing vacancies, magnetic field, string and plaquette operators
-
-
-using HDF5
-using ITensors
-using ITensorMPS
+using ITensors, ITensorMPS
+using LinearAlgebra
 using MKL
 using TimerOutputs
-using LinearAlgebra
-import ITensors: energies
+using HDF5
 
-
-include("src/kitaev_heisenberg/HoneycombLattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
-include("src/kitaev_heisenberg/CustomObserver.jl")
+include("../../HoneycombLattice.jl")
+include("../../Entanglement.jl")
+include("../../TopologicalLoops.jl")
+include("../../CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -22,10 +17,8 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
-
 # Timing and profiling
 const time_machine = TimerOutput()
-
 
 let
   # Monitor the number of threads used by BLAS and LAPACK
@@ -43,7 +36,7 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = Jy = Jz = 1.0
+  Jx = Jy = Jz = -1.0
   alpha = 1E-4
   h=0.0
   @show Jx, Jy, Jz, alpha, h
@@ -51,8 +44,8 @@ let
   # Set up the perturbation strength for loop operators
   # lambda_left  = -0.1
   # lambda_right = 1.0 * lambda_left
-  lambda_left=-0.09
-  lambda_right=0.09
+  lambda_left=0
+  lambda_right=0
   eta = abs(lambda_left)                      # The strength of the plaquette perturbation
   @show lambda_left, lambda_right, eta        # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
   
@@ -246,11 +239,13 @@ let
 
 
   # Remove plaquette perturbations near the vacancy
+  # The plaquettes that need to be removed depends on the width of the cylinder
   println("The size of the orginal list of plaquettes:")
   @show size(plaquette_indices)
   println("")
   # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(19, 20, step = 1)), :]
-  tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [19, 20, 22]), :]
+  # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [19, 20, 22]), :]
+  tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [26, 27, 30]), :]
   println("The size of the truncated list of plaquettes:")
   @show size(tmp_plaquette_indices)
   println("")
@@ -298,8 +293,8 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 2
-  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  nsweeps = 30
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 4000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
@@ -314,8 +309,7 @@ let
   
   # Construct a custom observer and stop the DMRG calculation early if needed
   custom_observer = CustomObserver()
-  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  @show custom_observer.energy_tol
+  @show custom_observer.etolerance
   @show custom_observer.minsweeps
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
@@ -491,27 +485,27 @@ let
 
   @show time_machine
   
-  # h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/TBC/epsilon1E-10/W4/AFM_Refine/lambda_file/configuration_file/data/2d_kitaev_honeycomb_lambda$(eta).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end

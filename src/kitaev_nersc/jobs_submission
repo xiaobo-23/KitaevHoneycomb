@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#SBATCH --nodes=1
+#SBATCH --ntasks=16
+#SBATCH --cpus-per-task=8
+#SBATCH --constraint=cpu
+#SBATCH --reservation=kitaev
+#SBATCH -J kitaev
+#SBATCH --output=%x.%j.out
+#SBATCH --error=%x.%j.err
+#SBATCH -t 250:00:00
+
+
+# # Set up the Julia environment
+# module purge; module load julia/1.10.4
+
+
+for field in $(seq 0  0.01  0.15)
+do 
+    cd /global/homes/x/xiaobo23/tensor_networks/quantum_spin_liquids/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/PBC/epsilon1E-10/W3/AFM/lambda_file/configuration_file/h$field
+    srun -n 1 julia --threads=1 2d_kitaev_vacancy_flux_extraction.jl > kitaev_honeycomb_vacancy$field.log &
+done
+
+
+wait
