@@ -137,34 +137,43 @@ function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   
   	latt = Lattice(undef, Nbond)
   	b = 0
-		for n in 1:N
-			x = div(n - 1, Ny) + 1
-			y = mod(n - 1, Ny) + 1
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
 
-			# x-direction bonds for A sublattice
-			if mod(x, 2) == 0 && x < Nx
-				latt[b += 1] = LatticeBond(n, n + Ny)
+		# Set up the vertical bonds at odd column in the armchair geometry
+		if mod(x, 2) == 1 && mod(y, 2) == 1
+			latt[b += 1] = LatticeBond(n, n + 1)
+		end
+		
+		# Set up the vertical bonds at even column in the armchair geometry
+		if mod(x, 2) == 0 && mod(y, 2) == 0
+			if mod(y, Ny) == 0
+				latt[b += 1] = LatticeBond(n, n + 1 - Ny)
+			else
+				latt[b += 1] = LatticeBond(n, n + 1)
 			end
+		end
 
-			# bonds for B sublattice
-			if Ny > 1
-				if mod(x, 2) == 1 && x < Nx
-					# @show latt
-					latt[b += 1] = LatticeBond(n, n + Ny)
-					if y != 1
-						latt[b += 1] = LatticeBond(n, n + Ny - 1)
-					end
-				end
-			
-				# periodic bonds 
-				if mod(x, 2) == 1 && yperiodic && y == 1
-					latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
-				end
-			end
+		# Set up the non-vertical bonds in the bulk
+		if x != 1 && x != Nx
+			latt[b += 1] = LatticeBond(n, n + Ny)
+			latt[b += 1] = LatticeBond(n, n - Ny)
+		end
 
-		# @show latt
+		# Set up the non-vertical bonds at the left edge
+		if x == 1
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+
+		# Set up the non-vertical bonds the right edge
+		if x == Nx
+			latt[b += 1] = LatticeBond(n, n - Ny)
+		end
+		
+		@show latt
 	end
-
+	
 	return latt
 end
 
