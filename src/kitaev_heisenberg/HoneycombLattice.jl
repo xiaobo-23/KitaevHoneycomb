@@ -81,7 +81,7 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
   
   	latt = Lattice(undef, Nbond)
@@ -118,6 +118,58 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 end
 
 
+# 01/06/2025
+# Implement the honeycomb lattice geometry using the armchair pattern
+function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+	"""
+		Use the armchair pattern 
+		The number of rows needs to be an even number 
+	"""
+	
+	if Ny % 2 != 0
+		error("The number of rows (Ny) needs to be an even number.")
+	end
+
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
+	@show Nbond
+  
+  	latt = Lattice(undef, Nbond)
+  	b = 0
+		for n in 1:N
+			x = div(n - 1, Ny) + 1
+			y = mod(n - 1, Ny) + 1
+
+			# x-direction bonds for A sublattice
+			if mod(x, 2) == 0 && x < Nx
+				latt[b += 1] = LatticeBond(n, n + Ny)
+			end
+
+			# bonds for B sublattice
+			if Ny > 1
+				if mod(x, 2) == 1 && x < Nx
+					# @show latt
+					latt[b += 1] = LatticeBond(n, n + Ny)
+					if y != 1
+						latt[b += 1] = LatticeBond(n, n + Ny - 1)
+					end
+				end
+			
+				# periodic bonds 
+				if mod(x, 2) == 1 && yperiodic && y == 1
+					latt[b += 1] = LatticeBond(n, n + 2 * Ny - 1)
+				end
+			end
+
+		# @show latt
+	end
+
+	return latt
+end
+
+
+
 function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	  Using the ring ordering scheme
@@ -125,7 +177,7 @@ function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
 	
 	latt = Lattice(undef, Nbond)
@@ -176,7 +228,7 @@ function honeycomb_lattice_rings_right_twist(Nx::Int, Ny::Int; yperiodic=false):
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? -1 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? -1 : -trunc(Int, Nx / 2))
 	@show Nbond
 	
 	latt = Lattice(undef, Nbond)
@@ -220,7 +272,7 @@ function honeycomb_lattice_rings_reorder(Nx::Int, Ny::Int; yperiodic=false)::Lat
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	# @show Nbond
   
   	latt = Lattice(undef, Nbond)
@@ -281,7 +333,7 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   """
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
   
 	latt = Lattice(undef, Nbond)

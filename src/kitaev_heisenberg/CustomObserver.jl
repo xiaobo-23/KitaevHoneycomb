@@ -1,11 +1,9 @@
 # 04/11/2024
-# Defining a custom observer for the DMRG calculation to keep track of 
-# the energy, bonod dimension etc.
+# Defining a custom observer for the DMRG calculation to keep track of the energy, bonod dimension etc.
 # Using early stopping to stop the calculation when the energy converges 
 
 using ITensors
 using ITensorMPS
-# using ITensors: energies
 
 # Defining a custom observer and make this struct a subtype of AbstractObserver
 mutable struct CustomObserver <: AbstractObserver
@@ -19,16 +17,16 @@ mutable struct CustomObserver <: AbstractObserver
   end
   
   
-  # function CustomObserver(; etolerance=1E-8, minsweeps=2)
-  #   return CustomObserver(
-  #     Float64[], 
-  #     Float64[],
-  #     Int[], 
-  #     etolerance, 
-  #     1000.0,
-  #     minsweeps,
-  #   )
-  # end
+  function CustomObserver(; etolerance=0.5*1E-8, minsweeps=2)
+    return CustomObserver(
+      Float64[], 
+      Float64[],
+      Int[], 
+      etolerance, 
+      1000.0,
+      minsweeps,
+    )
+  end
   
   # Overloading the measure! method
   function ITensorMPS.measure!(tmpObs::DMRGObserver; kwargs...)

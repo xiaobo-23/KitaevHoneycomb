@@ -4,7 +4,6 @@
 # Using early stopping to stop the calculation when the energy converges 
 
 using ITensors, ITensorMPS
-# using ITensors: energies
 
 # Defining a custom observer and make this struct a subtype of AbstractObserver
 mutable struct CustomObserver <: AbstractObserver
