@@ -22,21 +22,21 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
+# Monitor the number of threads used by BLAS and LAPACK
+@show BLAS.get_config()
+@show BLAS.get_num_threads()
+
+
+const Nx_unit = 4
+const Ny_unit = 4
+const Nx = 2 * Nx_unit
+const Ny = Ny_unit
+const N = Nx * Ny
 # Timing and profiling
 const time_machine = TimerOutput()
 
+
 let
-  # Monitor the number of threads used by BLAS and LAPACK
-  @show BLAS.get_config()
-  @show BLAS.get_num_threads()
-
-  # Set up the parameters for the honeycomb lattice
-  Nx_unit = 4
-  Ny_unit = 4
-  Nx = 2 * Nx_unit
-  Ny = Ny_unit
-  N = Nx * Ny
-
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
@@ -233,14 +233,10 @@ let
   # end 
 
   
-  # # Add the plaquette perturbation to the cylinder
-  # plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-  # if y_direction_twist
-  #   plaquette_indices = PlaquetteList_RightTiwst(Nx_unit, Ny_unit, "rings", false)
-  # else
-  #   plaquette_indices = PlaquetteList(Nx_unit, Ny_unit, "rings", false)
-  # end
-
+  # Generate the plaquette indices for all the plaquettes in the cylinder
+  plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
+  plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
+  @show plaquette_indices
 
   # # Remove plaquette perturbations near the vacancy
   # println("The size of the orginal list of plaquettes:")
@@ -282,94 +278,78 @@ let
   #   end
   # end
 
-  
-  # # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
-  # sites = siteinds("S=1/2", N; conserve_qns=false)
-  # H = MPO(os, sites)
+
+  # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
+  sites = siteinds("S=1/2", N; conserve_qns=false)
+  H = MPO(os, sites)
 
 
-  # # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
-  # # numbers as `state`
-  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  # ψ₀ = randomMPS(sites, state, 20)
+  # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
+  # numbers as `state`
+  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  ψ₀ = randomMPS(sites, state, 20)
 
   
-  # # Set up the parameters including bond dimensions and truncation error
-  # nsweeps = 1
-  # maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
-  # cutoff  = [1E-10]
-  # eigsolve_krylovdim = 50
+  # Set up the parameters including bond dimensions and truncation error
+  nsweeps = 6
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  cutoff  = [1E-10]
+  eigsolve_krylovdim = 50
   
-  # # Add noise terms to prevent DMRG from getting stuck in a local minimum
-  # # noise = [1E-6, 1E-7, 1E-8, 0.0]
+  # Add noise terms to prevent DMRG from getting stuck in a local minimum
+  # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
-  # # Measure the initial local observables (one-point functions)
-  # Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
-  # Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
-  # Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  # Measure the initial local observables (one-point functions)
+  Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
+  Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
+  Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
   
-  # # Construct a custom observer and stop the DMRG calculation early if needed
-  # custom_observer = CustomObserver()
-  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  # @show custom_observer.etolerance
-  # @show custom_observer.minsweeps
-  # @timeit time_machine "dmrg simulation" begin
-  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  # Construct a custom observer and stop the DMRG calculation early if needed
+  
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
+  @timeit time_machine "dmrg simulation" begin
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  end
+  
+  # Measure local observables (one-point functions) after finish the DMRG simulation
+  @timeit time_machine "one-point functions" begin
+    Sx = expect(ψ, "Sx", sites = 1 : N)
+    Sy = expect(ψ, "iSy", sites = 1 : N)
+    Sz = expect(ψ, "Sz", sites = 1 : N)
+  end
+
+  # @timeit time_machine to "two-point functions" begin
+  #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+  #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
+  #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
   # end
 
-  # #***************************************************************************************************************
-  # # # Construct a DMRGobserver to measure local observables and stop the calculation early if needed
-  # # Sz_observer = DMRGObserver(["Sz"], sites, minsweeps=2, energy_tol = 1E-7)
-  
-  # # @timeit time_machine "dmrg simulation" begin
-  # #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = Sz_observer) 
-  # # end
 
-  # # for (sweep, Szs) in enumerate(measurements(Sz_observer)["Sz"])
-  # #   println("Total Sz after sweep $sweep= ", sum(Szs) / (2 * N))
-  # # end
-  # # @show energies(Sz_observer)
-  # # @show maxlinkdim(ψ)
-  # #***************************************************************************************************************
-  
-  
-  # # Measure local observables (one-point functions) after finish the DMRG simulation
-  # @timeit time_machine "one-point functions" begin
-  #   Sx = expect(ψ, "Sx", sites = 1 : N)
-  #   Sy = expect(ψ, "iSy", sites = 1 : N)
-  #   Sz = expect(ψ, "Sz", sites = 1 : N)
-  # end
-
-  # # @timeit time_machine to "two-point functions" begin
-  # #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  # #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  # #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-  # # end
-
-
-  # # Compute the eigenvalues of all plaquette operators
-  # # The plaquette operators are always six-point correlators
-  # # normalize!(ψ)
-  # @timeit time_machine "plaquette operators" begin
-  #   W_operator_eigenvalues = Vector{Float64}(undef, size(plaquette_indices, 1))
+  # Compute the eigenvalues of plaquette operators
+  # normalize!(ψ)
+  @timeit time_machine "plaquette operators" begin
+    W_operator_eigenvalues = Vector{Float64}(undef, size(plaquette_indices, 1))
     
-  #   # Compute the eigenvalues of the plaquette operator
-  #   for index in 1 : size(plaquette_indices, 1)
-  #     @show plaquette_indices[index, :]
-  #     os_w = OpSum()
-  #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-  #       plaquette_operator[2], plaquette_indices[index, 2], 
-  #       plaquette_operator[3], plaquette_indices[index, 3], 
-  #       plaquette_operator[4], plaquette_indices[index, 4], 
-  #       plaquette_operator[5], plaquette_indices[index, 5], 
-  #       plaquette_operator[6], plaquette_indices[index, 6]
-  #     W = MPO(os_w, sites)
-  #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-  #   end
-  # end
-
+    # Compute the eigenvalues of the plaquette operator
+    for index in 1 : size(plaquette_indices, 1)
+      @show plaquette_indices[index, :]
+      os_w = OpSum()
+      os_w += plaquette_operator[1], plaquette_indices[index, 1], 
+        plaquette_operator[2], plaquette_indices[index, 2], 
+        plaquette_operator[3], plaquette_indices[index, 3], 
+        plaquette_operator[4], plaquette_indices[index, 4], 
+        plaquette_operator[5], plaquette_indices[index, 5], 
+        plaquette_operator[6], plaquette_indices[index, 6]
+      W = MPO(os_w, sites)
+      W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
+      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+    end
+  end
+  @show W_operator_eigenvalues
   
   # # Compute the eigenvalues of the loop operators 
   # # The loop operators depend on the width of the cylinder  
@@ -446,14 +426,14 @@ let
   # end
 
   
-  # # Print out several quantities of interest including the energy per site etc.
-  # println("")
-  # println("Visualize the optimization history of the energy and bond dimensions:")
-  # @show custom_observer.ehistory_full
-  # @show custom_observer.ehistory
-  # @show custom_observer.chi
-  # # @show number_of_bonds, energy / number_of_bonds
-  # # @show N, energy / N
+  # Print out several quantities of interest including the energy per site etc.
+  println("")
+  println("Visualize the optimization history of the energy and bond dimensions:")
+  @show custom_observer.ehistory_full
+  @show custom_observer.ehistory
+  @show custom_observer.chi
+  # @show number_of_bonds, energy / number_of_bonds
+  # @show N, energy / N
   
 
   # println("")
@@ -474,41 +454,41 @@ let
   # println("")
 
 
-  # # Check the variance of the energy
-  # @timeit time_machine "compaute the variance" begin
-  #   H2 = inner(H, ψ, H, ψ)
-  #   E₀ = inner(ψ', H, ψ)
-  #   variance = H2 - E₀^2
-  # end
-  # println("")
-  # @show E₀
-  # println("Variance of the energy is $variance")
-  # println("")
+  # Check the variance of the energy
+  @timeit time_machine "compaute the variance" begin
+    H2 = inner(H, ψ, H, ψ)
+    E₀ = inner(ψ', H, ψ)
+    variance = H2 - E₀^2
+  end
+  println("")
+  @show E₀
+  println("Variance of the energy is $variance")
+  println("")
 
 
-  # @show time_machine
+  @show time_machine
   
-  # # h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
-  # #   write(file, "psi", ψ)
-  # #   write(file, "NormalizedE0", energy / number_of_bonds)
-  # #   write(file, "E0", energy)
-  # #   write(file, "E0variance", variance)
-  # #   write(file, "Ehist", custom_observer.ehistory)
-  # #   write(file, "Bond", custom_observer.chi)
-  # #   # write(file, "Entropy", SvN)
-  # #   write(file, "Sx0", Sx₀)
-  # #   write(file, "Sx",  Sx)
-  # #   # write(file, "Cxx", xxcorr)
-  # #   write(file, "Sy0", Sy₀)
-  # #   write(file, "Sy", Sy)
-  # #   # write(file, "Cyy", yycorr)
-  # #   write(file, "Sz0", Sz₀)
-  # #   write(file, "Sz",  Sz)
-  # #   # write(file, "Czz", zzcorr)
-  # #   write(file, "Plaquette", W_operator_eigenvalues)
-  # #   write(file, "Loop", yloop_eigenvalues)
-  # #   write(file, "OrderParameter", order_parameter)
-  # # end
+  # h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end
