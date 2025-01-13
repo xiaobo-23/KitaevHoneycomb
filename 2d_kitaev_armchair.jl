@@ -30,33 +30,35 @@ let
   @show BLAS.get_config()
   @show BLAS.get_num_threads()
 
-  # Set up the parameters for the lattice
-  # Number of unit cells in x and y directions
-  Nx_unit_cell = 4
-  Ny_unit_cell = 4
-  Nx = 2 * Nx_unit_cell
-  Ny = Ny_unit_cell
+  # Set up the parameters for the honeycomb lattice
+  Nx_unit = 4
+  Ny_unit = 4
+  Nx = 2 * Nx_unit
+  Ny = Ny_unit
   N = Nx * Ny
 
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = Jy = Jz = 1.0
+  Jx, Jy, Jz = 1.0, 1.0, 1.0
   alpha = 1E-4
-  h=0.0
+  h = 0.0
   @show Jx, Jy, Jz, alpha, h
 
-  # Set up the perturbation strength for loop operators
-  lambda_left = 0.1
+  
+  # Set up the perturbation strength for the string and plaquette operators
+  lambda_left  = 0.1
   lambda_right = 1.0 * lambda_left
-  eta = abs(lambda_left)                      # The strength of the plaquette perturbation
-  @show lambda_left, lambda_right, eta        # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
+  eta = abs(lambda_left)  # The strength of the plaquette perturbation
+  @show lambda_left, lambda_right, eta  # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
   
 
   # honeycomb lattice implemented in the ring ordering scheme
   x_periodic = false
   y_direction_twist = true
 
+  
+  # Construct the honeycomb lattice with armchair geometry if OBC is used in the x direction
   if x_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
     @show length(lattice)
@@ -66,93 +68,86 @@ let
   end 
   number_of_bonds = length(lattice)
 
-  # if x_periodic
-  #   lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
-  #   @show length(lattice)
-  #   # @show lattice
-  # else
-  #   if y_direction_twist
-  #     lattice = honeycomb_lattice_rings_right_twist(Nx, Ny; yperiodic=true)
-  #     @show length(lattice)
-  #     # @show lattice
-  #   else
-  #     lattice = honeycomb_lattice_rings(Nx, Ny; yperiodic=true)
-  #     @show length(lattice)
-  #     # @show lattice
-  #   end
-  # end
-
-  # honeycomb lattice implemented in the C-style ordering scheme
-  # lattice = honeycomb_lattice_Cstyle(Nx, Ny; yperiodic=true)
   
-
   # # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
-  # lattice_sites   = Set{Int64}()
+  sites_to_delete = Set{Int64}()
+  lattice_sites   = Set{Int64}()
   
-  
+
   # # Add pinning fields to the lattice in a symmetric format
-  # pinning_seeds = collect(1 : Nx_unit_cell)
+  # pinning_seeds = collect(1 : Nx_unit)
   # deleteat!(pinning_seeds, 16)
   # deleteat!(pinning_seeds, 8) 
   # @show pinning_seeds
 
   
-  # # Construct the Hamiltonian using the OpSum system
-  # os = OpSum()
-  # enumerate_bonds = 0
-  # for b in lattice
-  #   tmp_x = div(b.s1 - 1, Ny) + 1
-  #   if in(b.s1, sites_to_delete) || in(b.s2, sites_to_delete)
-  #     coefficient_Jx = alpha * Jx
-  #     coefficient_Jy = alpha * Jy
-  #     coefficient_Jz = alpha * Jz
-  #   else
-  #     coefficient_Jx = Jx
-  #     coefficient_Jy = Jy
-  #     coefficient_Jz = Jz
-  #   end
-  #   @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
+  # Construct the Hamiltonian using OpSum
+  os = OpSum()
+  xbond = 0
+  ybond = 0
+  zbond = 0
+  for b in lattice
+    tmp_x = div(b.s1 - 1, Ny) + 1
+    if in(b.s1, sites_to_delete) || in(b.s2, sites_to_delete)
+      coefficient_Jx = alpha * Jx
+      coefficient_Jy = alpha * Jy
+      coefficient_Jz = alpha * Jz
+    else
+      coefficient_Jx = Jx
+      coefficient_Jy = Jy
+      coefficient_Jz = Jz
+    end
+    # @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
 
-  #   if mod(tmp_x, 2) == 0
-  #     os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
-  #     # @show b.s1, b.s2
-  #     # enumerate_bonds += 1
-  #   else
-  #     if b.s2 == b.s1 + Ny
-  #       os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
-  #       # @show b.s1, b.s2
-  #       # enumerate_bonds += 1
-  #     else
-  #       os .+= -coefficient_Jy, "Sy", b.s1, "Sy", b.s2
-  #       # @show b.s1, b.s2
-  #       # enumerate_bonds += 1
-  #     end 
-  #   end
+    if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
+      os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
+      zbond += 1
+      @show b.s1, b.s2, "Sz"
+    else
+      if mod(tmp_x, 2) == 1 
+        if mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
+          os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
+          xbond += 1
+          @show b.s1, b.s2, "Sx"
+        elseif mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
+          os .+= -coefficient_Jy, "Sy", b.s1, "Sy", b.s2
+          ybond += 1
+          @show b.s1, b.s2, "Sy"
+        end
+      else
+        if mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
+          os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
+          xbond += 1
+          @show b.s1, b.s2, "Sx"
+        elseif mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
+          os .+= -coefficient_Jy, "Sy", b.s1, "Sy", b.s2
+          ybond += 1
+          @show b.s1, b.s2, "Sy"
+        end
+      end
+    end
 
-  #   if !in(b.s1, lattice_sites)
-  #     push!(lattice_sites, b.s1)
-  #   end
+    if !in(b.s1, lattice_sites)
+      push!(lattice_sites, b.s1)
+    end
 
-  #   if !in(b.s2, lattice_sites)
-  #     push!(lattice_sites, b.s2)
-  #   end
-  # end
-  # # @show enumerate_bonds
-
+    if !in(b.s2, lattice_sites)
+      push!(lattice_sites, b.s2)
+    end
+  end
+  @show xbond, ybond, zbond
   
-  # # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
-  # # The magnetic field breaks integrability 
-  # # @show length(lattice_sites)
-  # # @show lattice_sites
-  # if h > 1e-8
-  #   for tmp_site in lattice_sites
-  #     os .+= -1.0 * h, "Sx", tmp_site
-  #     os .+= -1.0 * h, "Sy", tmp_site
-  #     os .+= -1.0 * h, "Sz", tmp_site
-  #   end
-  # end
-  # # @show os
+  # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
+  # The magnetic field breaks integrability 
+  # @show length(lattice_sites), lattice_sites
+  if h > 1e-8
+    for tmp_site in lattice_sites
+      os .+= -1.0 * h, "Sx", tmp_site
+      os .+= -1.0 * h, "Sy", tmp_site
+      os .+= -1.0 * h, "Sz", tmp_site
+    end
+  end
   
   # # Add the string operators as perturbations into the cylinder
   # string_operators = Vector{String}([])
@@ -241,9 +236,9 @@ let
   # # Add the plaquette perturbation to the cylinder
   # plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
   # if y_direction_twist
-  #   plaquette_indices = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  #   plaquette_indices = PlaquetteList_RightTiwst(Nx_unit, Ny_unit, "rings", false)
   # else
-  #   plaquette_indices = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
+  #   plaquette_indices = PlaquetteList(Nx_unit, Ny_unit, "rings", false)
   # end
 
 
@@ -381,9 +376,9 @@ let
   # @timeit time_machine "loop operators" begin
   #   # Construct the loop indices along the y direction with/without y_direction_twist
   #   if y_direction_twist
-  #     yloop_indices = LoopList_RightTwist(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
+  #     yloop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y"); @show yloop_indices
   #   else
-  #     yloop_indices = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y"); @show yloop_indices
+  #     yloop_indices = LoopList(Nx_unit, Ny_unit, "rings", "y"); @show yloop_indices
   #   end
   #   yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
     
