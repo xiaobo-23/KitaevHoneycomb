@@ -158,7 +158,6 @@ function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 		# Set up the non-vertical bonds in the bulk
 		if x != 1 && x != Nx
 			latt[b += 1] = LatticeBond(n, n + Ny)
-			latt[b += 1] = LatticeBond(n, n - Ny)
 		end
 
 		# Set up the non-vertical bonds at the left edge
@@ -166,14 +165,14 @@ function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 			latt[b += 1] = LatticeBond(n, n + Ny)
 		end
 
-		# Set up the non-vertical bonds the right edge
-		if x == Nx
-			latt[b += 1] = LatticeBond(n, n - Ny)
-		end
-		
-		@show latt
+		# # Set up the non-vertical bonds the right edge
+		# if x == Nx
+		# 	latt[b += 1] = LatticeBond(n, n - Ny)
+		# end
+		@show latt 
 	end
 	
+	@show latt 
 	return latt
 end
 
