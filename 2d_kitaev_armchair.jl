@@ -236,7 +236,7 @@ let
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  @show plaquette_indices
+  # @show plaquette_indices
 
   # # Remove plaquette perturbations near the vacancy
   # println("The size of the orginal list of plaquettes:")

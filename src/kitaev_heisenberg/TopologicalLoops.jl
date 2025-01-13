@@ -213,18 +213,25 @@ function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String,
             site_index1 = 2 * (x_index - 1) * inputNy + 2 * (y_index - 1) + 1
             if y_index <= div(inputNy, 2)
                 site_index2 = site_index1 + 1
-            elseif y_index == div(inputNy, 2) + 1
-                site_index2 = site_index1 + inputNy - 1
+                plaquette[index, 1] = site_index1
+                plaquette[index, 2] = site_index1 + inputNy
+                plaquette[index, 3] = site_index1 + 2 * inputNy
+                plaquette[index, 4] = site_index2
+                plaquette[index, 5] = site_index2 + inputNy
+                plaquette[index, 6] = site_index2 + 2 * inputNy 
             else
-                site_index2 = site_index1 - 1
-            end
-
-            plaquette[index, 1] = site_index1
-            plaquette[index, 2] = site_index1 + inputNy
-            plaquette[index, 3] = site_index1 + 2 * inputNy
-            plaquette[index, 4] = site_index2
-            plaquette[index, 5] = site_index2 + inputNy
-            plaquette[index, 6] = site_index2 + 2 * inputNy
+                if y_index == div(inputNy, 2) + 1
+                    site_index2 = site_index1 + inputNy - 1
+                else
+                    site_index2 = site_index1 - 1
+                end
+                plaquette[index, 1] = site_index2
+                plaquette[index, 2] = site_index2 + inputNy
+                plaquette[index, 3] = site_index2 + 2 * inputNy
+                plaquette[index, 4] = site_index1
+                plaquette[index, 5] = site_index1 + inputNy
+                plaquette[index, 6] = site_index1 + 2 * inputNy
+            end 
         end
     elseif geometery == "armchair" && x_periodic == true
        error("Periodic boundary condition in x direction needs to be implemented!")
