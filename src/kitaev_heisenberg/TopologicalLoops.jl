@@ -240,3 +240,35 @@ function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String,
     @show plaquette
     return plaquette 
 end
+
+
+
+function LoopListArmchair(inputNx:: Int, inputNy:: Int, ordering_geometery:: String, direction:: String)
+    # '''
+    #     Use PBC in the y direction as default
+    #     Nx: the number of unit cells in the x direction
+    #     Ny: the number of unit cells in the y direction
+    # '''
+
+    println("")
+    println("****************************************************************************************")
+    println("Generate the list of indices for loops using armchair geometery")
+    println("****************************************************************************************")
+    println("")
+
+    if ordering_geometery != "armchair"
+        error("Ordering geometery has not been implemented!")
+    end
+
+    if ordering_geometery == "armchair" && direction == "y"
+        loop_list = Matrix{Int64}(undef, inputNx, 2 * inputNy)
+        for idx1 in 1 : inputNx
+            for idx2 in 1 : 2 * inputNy
+                loop_list[idx1, idx2] = 2 * (idx1 - 1) * inputNy + idx2
+            end
+        end
+    end     
+    
+    @show loop_list
+    return loop_list
+end

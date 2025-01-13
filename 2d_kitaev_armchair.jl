@@ -232,7 +232,11 @@ let
   #   end
   # end 
 
-  
+  # Generate the indices for all loop operators along the cylinder
+  loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
+  loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
+  @show loop_indices
+
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
@@ -351,44 +355,30 @@ let
   end
   @show W_operator_eigenvalues
   
-  # # Compute the eigenvalues of the loop operators 
-  # # The loop operators depend on the width of the cylinder  
-  # @timeit time_machine "loop operators" begin
-  #   # Construct the loop indices along the y direction with/without y_direction_twist
-  #   if y_direction_twist
-  #     yloop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y"); @show yloop_indices
-  #   else
-  #     yloop_indices = LoopList(Nx_unit, Ny_unit, "rings", "y"); @show yloop_indices
-  #   end
-  #   yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
+  # Compute the eigenvalues of the loop operators 
+  # The loop operators depend on the width of the cylinder  
+  @timeit time_machine "loop operators" begin
+    yloop_eigenvalues = Vector{Float64}(undef, size(loop_indices)[1])
     
-  #   # Compute eigenvalues of the loop operators in the direction with PBC.
-  #   for loop_index in 1 : size(yloop_indices)[1]
-  #     @show yloop_indices[loop_index, :]
-      
-  #     os_wl = OpSum()
-  #     # Construct the loop operator(s) along the y direction for three-leg cylinder
-  #     # os_wl += string_operators[1], yloop_indices[loop_index, 1], 
-  #     #   string_operators[2], yloop_indices[loop_index, 2], 
-  #     #   string_operators[3], yloop_indices[loop_index, 3], 
-  #     #   string_operators[4], yloop_indices[loop_index, 4], 
-  #     #   string_operators[5], yloop_indices[loop_index, 5], 
-  #     #   string_operators[6], yloop_indices[loop_index, 6]
+    # Compute eigenvalues of the loop operators in the direction with PBC.
+    for index in 1 : size(loop_indices)[1]
+      os_wl = OpSum()
 
-  #     # Construct the loop operator(s) along the y direction for four-leg cylinder
-  #     os_wl += string_operators[1], yloop_indices[loop_index, 1], 
-  #       string_operators[2], yloop_indices[loop_index, 2], 
-  #       string_operators[3], yloop_indices[loop_index, 3], 
-  #       string_operators[4], yloop_indices[loop_index, 4], 
-  #       string_operators[5], yloop_indices[loop_index, 5], 
-  #       string_operators[6], yloop_indices[loop_index, 6],
-  #       string_operators[7], yloop_indices[loop_index, 7],
-  #       string_operators[8], yloop_indices[loop_index, 8]
+      # Construct the loop operator(s) along the y direction for width-4 cylinders
+      os_wl += loop_operator[1], loop_indices[index, 1], 
+        loop_operator[2], loop_indices[index, 2], 
+        loop_operator[3], loop_indices[index, 3], 
+        loop_operator[4], loop_indices[index, 4], 
+        loop_operator[5], loop_indices[index, 5], 
+        loop_operator[6], loop_indices[index, 6],
+        loop_operator[7], loop_indices[index, 7],
+        loop_operator[8], loop_indices[index, 8]
 
-  #     Wl = MPO(os_wl, sites)
-  #     yloop_eigenvalues[loop_index] = real(inner(ψ', Wl, ψ))
-  #   end
-  # end
+      Wl = MPO(os_wl, sites)
+      yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
+    end
+  end
+  @show yloop_eigenvalues
 
 
 
