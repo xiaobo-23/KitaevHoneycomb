@@ -40,7 +40,7 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx, Jy, Jz = 1.0, 1.0, 1.0
+  Jx, Jy, Jz = -1.0, -1.0, - 1.0
   alpha = 1E-4
   h = 0.0
   @show Jx, Jy, Jz, alpha, h
@@ -295,7 +295,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 6
+  nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -336,7 +336,7 @@ let
   # Compute the eigenvalues of plaquette operators
   # normalize!(ψ)
   @timeit time_machine "plaquette operators" begin
-    W_operator_eigenvalues = Vector{Float64}(undef, size(plaquette_indices, 1))
+    W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
     
     # Compute the eigenvalues of the plaquette operator
     for index in 1 : size(plaquette_indices, 1)
@@ -358,13 +358,12 @@ let
   # Compute the eigenvalues of the loop operators 
   # The loop operators depend on the width of the cylinder  
   @timeit time_machine "loop operators" begin
-    yloop_eigenvalues = Vector{Float64}(undef, size(loop_indices)[1])
+    yloop_eigenvalues = zeros(Float64, size(loop_indices)[1])
     
     # Compute eigenvalues of the loop operators in the direction with PBC.
     for index in 1 : size(loop_indices)[1]
+      ## Construct loop operators along the y direction with PBC
       os_wl = OpSum()
-
-      # Construct the loop operator(s) along the y direction for width-4 cylinders
       os_wl += loop_operator[1], loop_indices[index, 1], 
         loop_operator[2], loop_indices[index, 2], 
         loop_operator[3], loop_indices[index, 3], 
@@ -378,7 +377,6 @@ let
       yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
     end
   end
-  @show yloop_eigenvalues
 
 
 
@@ -416,7 +414,7 @@ let
   # end
 
   
-  # Print out several quantities of interest including the energy per site etc.
+  # Print out useful information of physical quantities
   println("")
   println("Visualize the optimization history of the energy and bond dimensions:")
   @show custom_observer.ehistory_full
@@ -424,25 +422,7 @@ let
   @show custom_observer.chi
   # @show number_of_bonds, energy / number_of_bonds
   # @show N, energy / N
-  
-
-  # println("")
-  # println("Eigenvalues of the plaquette operator:")
-  # @show W_operator_eigenvalues
-  # println("")
-
-
-  # print("")
-  # println("Eigenvalues of the loop operator(s):")
-  # @show yloop_eigenvalues
-  # println("")
-
-
-  # println("")
-  # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  # @show order_parameter
-  # println("")
-
+  println("")
 
   # Check the variance of the energy
   @timeit time_machine "compaute the variance" begin
@@ -454,31 +434,47 @@ let
   @show E₀
   println("Variance of the energy is $variance")
   println("")
+  
 
+  println("")
+  println("Eigenvalues of the plaquette operator:")
+  @show W_operator_eigenvalues
+  println("")
+
+
+  print("")
+  println("Eigenvalues of the loop operator(s):")
+  @show yloop_eigenvalues
+  println("")
+
+  # println("")
+  # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
+  # @show order_parameter
+  # println("")
 
   @show time_machine
   
-  # h5open("../data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_h$(h).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    # write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    # write(file, "Czz", zzcorr)
+    write(file, "Plaquette", W_operator_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    # write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
