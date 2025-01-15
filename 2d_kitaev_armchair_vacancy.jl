@@ -92,7 +92,7 @@ let
       coefficient_Jy = Jy
       coefficient_Jz = Jz
     end
-    @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
+    # @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
 
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
@@ -145,7 +145,6 @@ let
   end
   
 
-  
   #*************************************************************************************************************************
   #*************************************************************************************************************************
   # Add loop perturbations to the Hamiltonian
@@ -194,50 +193,35 @@ let
   #*************************************************************************************************************************
 
 
+  
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
+  # ADD PLAQUETTE PERTURBATION TO THE LATTICE EXCEPT FOR THE PALQUETTES NEAR THE VACANCY
+  
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  # @show plaquette_indices
+  plaquette_perturbation_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [25, 28, 29]), :] # Hard-coded for the single vacancy in the middle of the width-4 cylinder
+  
+  if abs(eta) > 1E-8
+    for index in 1 : size(plaquette_perturbation_indices, 1)
+      tmp_indices = plaquette_perturbation_indices[index, :]
+      if 58 in tmp_indices
+        error("ERROR: Adding plaquette perturbation to the vacancy site!")
+      end
+      
 
-  # # Remove plaquette perturbations near the vacancy
-  # println("The size of the orginal list of plaquettes:")
-  # @show size(plaquette_indices)
-  # println("")
-  # # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(19, 20, step = 1)), :]
-  # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [19, 20, 22]), :]
-  # println("The size of the truncated list of plaquettes:")
-  # @show size(tmp_plaquette_indices)
-  # println("")
+      os .+= eta, plaquette_operator[1], tmp_indices[1], 
+        plaquette_operator[2], tmp_indices[2], 
+        plaquette_operator[3], tmp_indices[3], 
+        plaquette_operator[4], tmp_indices[4], 
+        plaquette_operator[5], tmp_indices[5], 
+        plaquette_operator[6], tmp_indices[6]
+    end
+  end
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
 
-  # if abs(eta) > 1E-8
-  #   for index in 1 : size(tmp_plaquette_indices, 1)
-  #     println("")
-  #     @show tmp_plaquette_indices[index, :]
-  #     println("")
-
-  #     os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
-  #     plaquette_operator[2], tmp_plaquette_indices[index, 2], 
-  #     plaquette_operator[3], tmp_plaquette_indices[index, 3], 
-  #     plaquette_operator[4], tmp_plaquette_indices[index, 4], 
-  #     plaquette_operator[5], tmp_plaquette_indices[index, 5], 
-  #     plaquette_operator[6], tmp_plaquette_indices[index, 6]
-
-  #     # Only remove three plaquette perturbations near the vacancy
-  #     # if 44 ∉ plaquette_indices[index, :]
-  #     #   # println("")
-  #     #   # @show plaquette_indices[index, :]
-  #     #   # println("")
-  #     #   # @show size(os)
-
-  #     #   os .+= eta, plaquette_operator[1], plaquette_indices[index, 1], 
-  #     #   plaquette_operator[2], plaquette_indices[index, 2], 
-  #     #   plaquette_operator[3], plaquette_indices[index, 3], 
-  #     #   plaquette_operator[4], plaquette_indices[index, 4], 
-  #     #   plaquette_operator[5], plaquette_indices[index, 5], 
-  #     #   plaquette_operator[6], plaquette_indices[index, 6]
-  #     # end 
-  #   end
-  # end
 
 
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -267,7 +251,6 @@ let
   
   
   # Construct a custom observer and stop the DMRG calculation early if needed
-  
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
   @show custom_observer.etolerance
