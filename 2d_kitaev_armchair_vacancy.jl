@@ -27,7 +27,7 @@ OMP_NUM_THREADS = 8
 @show BLAS.get_num_threads()
 
 
-const Nx_unit = 4
+const Nx_unit = 15
 const Ny_unit = 4
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
@@ -69,18 +69,12 @@ let
   number_of_bonds = length(lattice)
 
   
-  # # Select the position(s) of the vacancies
-  # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
-  sites_to_delete = Set{Int64}()
+  
+  # Select the position(s) of the vacancies
+  # sites_to_delete = Set{Int64}()
+  sites_to_delete = Set{Int64}([58])  # The site number of the vacancy depends on the lattice width
   lattice_sites   = Set{Int64}()
   
-
-  # # Add pinning fields to the lattice in a symmetric format
-  # pinning_seeds = collect(1 : Nx_unit)
-  # deleteat!(pinning_seeds, 16)
-  # deleteat!(pinning_seeds, 8) 
-  # @show pinning_seeds
-
   
   # Construct the Hamiltonian using OpSum
   os = OpSum()
@@ -98,7 +92,7 @@ let
       coefficient_Jy = Jy
       coefficient_Jz = Jz
     end
-    # @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
+    @show b.s1, b.s2, coefficient_Jx, coefficient_Jy, coefficient_Jz  
 
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -coefficient_Jz, "Sz", b.s1, "Sz", b.s2
@@ -138,6 +132,7 @@ let
   end
   @show xbond, ybond, zbond
   
+  
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
   # The magnetic field breaks integrability 
   # @show length(lattice_sites), lattice_sites
@@ -149,93 +144,55 @@ let
     end
   end
   
-  # # Add the string operators as perturbations into the cylinder
-  # string_operators = Vector{String}([])
+
   
-  # for index in 1 : 2
-  #   if y_direction_twist
-  #     push!(string_operators, "X")
-  #   else
-  #     push!(string_operators, "Z")
-  #   end 
-  # end
-
-  # for index in 3 : 2 * Ny
-  #   push!(string_operators, "Z")
-  # end
-  
-  # println("")
-  # println("")
-  # println("For width-$Ny cylinder, the string operators are:")
-  # @show string_operators
-  # println("")
-  # println("")
-
-
-  # # Add the index of the pinning sites into a Matrix
-  # pinning_sites = Matrix{Int64}(undef, length(pinning_seeds), 2 * Ny)
-  # for index in eachindex(pinning_seeds)
-  #   # Generate extra indices for the four-leg cylinder
-  #   pinning_sites[index, 1] = pinning_seeds[index] * 2 * Ny + 1
-  #   pinning_sites[index, 2] = (2 * pinning_seeds[index] - 1) * Ny + 1
-  #   pinning_sites[index, 3] = pinning_sites[index, 2] - 3
-  #   pinning_sites[index, 4] = pinning_sites[index, 2] + 1
-  #   pinning_sites[index, 5] = pinning_sites[index, 2] - 2
-  #   pinning_sites[index, 6] = pinning_sites[index, 2] + 2
-  #   pinning_sites[index, 7] = pinning_sites[index, 2] - 1
-  #   pinning_sites[index, 8] = pinning_sites[index, 2] + 3
-
-  #   println("")
-  #   @show pinning_sites[index, :]
-  #   println("")
-
-
-  #   # Generate the indices for periodic boundary condition in the y direction without a twist.
-  #   # for index2 in 1 : 2 * Ny
-  #   #   pinning_sites[index1, index2] = 2 * (pinning_seeds[index1] - 1) * Ny + index2 + 1
-  #   # end
-  #   # println("")
-  #   # @show pinning_sites[index, :]
-  #   # println("")
-  # end
-  
-  # # Add perturbation to the left of the vacancy
-  # if abs(lambda_left) > 1E-8
-  #   for index in 1 : Int(size(pinning_sites, 1) / 2)
-  #     @show index, lambda_left
-  #     # os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
-  #     #   string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #     #   string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #     #   string_operators[6], pinning_sites[index, 6]
-  #     os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
-  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #       string_operators[6], pinning_sites[index, 6], string_operators[7], pinning_sites[index, 7],
-  #       string_operators[8], pinning_sites[index, 8]
-  #   end
-  # end
-
-
-  # # Add perturbation to the right of the vacancy
-  # if abs(lambda_right) > 1E-8
-  #   for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
-  #     @show index, lambda_right
-  #     # os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
-  #     #   string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #     #   string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #     #   string_operators[6], pinning_sites[index, 6]
-  #     os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
-  #       string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-  #       string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-  #       string_operators[6], pinning_sites[index, 6], string_operators[7], pinning_sites[index, 7],
-  #       string_operators[8], pinning_sites[index, 8]
-  #   end
-  # end 
-
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
+  # Add loop perturbations to the Hamiltonian
   # Generate the indices for all loop operators along the cylinder
   loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  @show loop_indices
+  
+
+  # Define the loop operators wrapping around the cylinder
+  string_operator = Vector{String}([])
+  for index in 1 : 2 * Ny
+    if index % 2 == 1
+      push!(string_operator, "iY")
+    else
+      push!(string_operator, "X")
+    end
+  end
+  # @show string_operator, loop_indices 
+
+  
+  # Generate the indices for all string operators along the cylinder
+  pinning_sites = loop_indices[1 : end .!= 8, :]
+  @show size(pinning_sites), size(loop_indices)
+  
+
+  # Add perturbation to the left of the vacancy
+  if abs(lambda_left) > 1E-8
+    for index in 1 : div(size(pinning_sites, 1), 2)
+      os .+= -1.0 * lambda_left, string_operator[1], pinning_sites[index, 1], 
+        string_operator[2], pinning_sites[index, 2], string_operator[3], pinning_sites[index, 3], 
+        string_operator[4], pinning_sites[index, 4], string_operator[5], pinning_sites[index, 5], 
+        string_operator[6], pinning_sites[index, 6], string_operator[7], pinning_sites[index, 7],
+        string_operator[8], pinning_sites[index, 8]
+
+      mirror_index = index + div(size(pinning_sites, 1), 2)
+      os .+= -1.0 * lambda_right, string_operator[1], pinning_sites[mirror_index, 1], 
+        string_operator[2], pinning_sites[mirror_index, 2], string_operator[3], pinning_sites[mirror_index, 3], 
+        string_operator[4], pinning_sites[mirror_index, 4], string_operator[5], pinning_sites[mirror_index, 5], 
+        string_operator[6], pinning_sites[mirror_index, 6], string_operator[7], pinning_sites[mirror_index, 7],
+        string_operator[8], pinning_sites[mirror_index, 8]
+
+      # @show index, lambda_left, mirror_index, lambda_right
+    end
+  end
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
+
 
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
@@ -295,7 +252,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
