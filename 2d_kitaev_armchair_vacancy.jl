@@ -318,40 +318,38 @@ let
     end
   end
 
-
-
-  # # Compute the eigenvalues of the order parameters near vacancies
-  # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
-  # # need to genealize in the future to automatically generate the loop indices near vacancies
-
-  # @timeit time_machine "twelve-point correlator(s)" begin
-  #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  #   order_indices = Matrix{Int64}(undef, 1, 12)
-  #   # Complete the loop indices near vacancies
-  #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
-  #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
-  #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
+  # # Compute the eigenvalues of the order parameter(s) near the vacancies
+  # # TO-DO: The twelve-point correlator(s) near the vacancies is hard-coded
+  @timeit time_machine "twelve-point correlator(s)" begin
+    order_loop = Vector{String}(["Z", "iY", "X", "X", "X", "Z", "iY", "iY", "iY", "X", "Z", "Z"])
+    order_indices = Matrix{Int64}(undef, 1, 12)
+    order_indices[1, :] = [53, 49, 50, 54, 55, 59, 63, 62, 66, 65, 61, 57]      # On the width-4 cylinders
+    order_parameter = Vector{Float64}(undef, size(order_indices)[1])
 
     
-  #   @show size(order_indices)[1]
-  #   for index in 1 : size(order_indices)[1]
-  #     os_parameter = OpSum()
-  #     os_parameter += order_loop[1], order_indices[index, 1], 
-  #       order_loop[2], order_indices[index, 2], 
-  #       order_loop[3], order_indices[index, 3], 
-  #       order_loop[4], order_indices[index, 4], 
-  #       order_loop[5], order_indices[index, 5], 
-  #       order_loop[6], order_indices[index, 6],
-  #       order_loop[7], order_indices[index, 7],
-  #       order_loop[8], order_indices[index, 8],
-  #       order_loop[9], order_indices[index, 9],
-  #       order_loop[10], order_indices[index, 10],
-  #       order_loop[11], order_indices[index, 11],
-  #       order_loop[12], order_indices[index, 12]
-  #     W_parameter = MPO(os_parameter, sites)
-  #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  #   end
-  # end
+    # @show size(order_indices)[1]
+    for index in 1 : size(order_indices)[1]
+      os_parameter = OpSum()
+      os_parameter += order_loop[1], order_indices[index, 1], 
+        order_loop[2], order_indices[index, 2], 
+        order_loop[3], order_indices[index, 3], 
+        order_loop[4], order_indices[index, 4], 
+        order_loop[5], order_indices[index, 5], 
+        order_loop[6], order_indices[index, 6],
+        order_loop[7], order_indices[index, 7],
+        order_loop[8], order_indices[index, 8],
+        order_loop[9], order_indices[index, 9],
+        order_loop[10], order_indices[index, 10],
+        order_loop[11], order_indices[index, 11],
+        order_loop[12], order_indices[index, 12]
+      W_parameter = MPO(os_parameter, sites)
+      order_parameter[index] = real(inner(ψ', W_parameter, ψ))
+    end
+  end
+  #*************************************************************************************************************************
+  #*************************************************************************************************************************
 
   
   # Print out useful information of physical quantities
@@ -360,8 +358,6 @@ let
   @show custom_observer.ehistory_full
   @show custom_observer.ehistory
   @show custom_observer.chi
-  # @show number_of_bonds, energy / number_of_bonds
-  # @show N, energy / N
   println("")
 
   # Check the variance of the energy
