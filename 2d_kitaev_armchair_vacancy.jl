@@ -236,7 +236,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
+  nsweeps = 5
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -383,10 +383,12 @@ let
   @show yloop_eigenvalues
   println("")
 
-  # println("")
-  # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  # @show order_parameter
-  # println("")
+
+  println("")
+  println("Eigenvalues of the twelve-point correlator near the first vacancy:")
+  @show order_parameter
+  println("")
+
 
   @show time_machine
   
