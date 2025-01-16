@@ -57,9 +57,6 @@
 # """
 # const Lattice = Vector{LatticeBond}
 
-
-# # include("/Users/boxiao/.julia/packages/ITensors/MnaxI/src/physics/lattices.jl")
-
 # """
 #     honeycomb_lattice(Nx::Int,
 #                        Ny::Int;
@@ -433,6 +430,11 @@ struct WedgeBond
 end
 
 
+function WedgeBond(s1::Int, s2::Int, s3::Int)
+	return WedgeBond(s1, s2, s3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "")
+end
+
+
 function WedgeBond(
   s1::Int, s2::Int, s3::Int, x1::Real, y1::Real, x2::Real, y2::Real, x3::Real, y3::Real, bondtype::String=""
 )
@@ -441,26 +443,27 @@ function WedgeBond(
 end
 
 
-"""
-Wedge is an alias for Vector{WedgeBond}
-"""
-const Wedge = Vector{WedgeBond}
+# """
+# Wedge is an alias for Vector{WedgeBond}
+# """
+# const Wedge = Vector{WedgeBond}
 
 
 # 01/06/2025
 # Implement the honeycomb lattice geometry using the armchair pattern
-function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)::Wedge
+function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	"""
 		Use the armchair geometery
-	"""
+	""" 
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny  # Number of lattice sites
 
 	
 	Nwedge = 3 * N  # Each lattice point is involved in three wedges
-	@show Nwedge
-  	wedge = Lattice(undef, Nwedge)
-  	
+	wedge = Vector{WedgeBond}(undef, Nwedge)
+	# wedge = Wedge(undef, Nwedge)
+  	# wedge = Wedge(Nwedge)
+
 	b = 0
 	for n in 1:N
 		x = div(n - 1, Ny) + 1
@@ -470,38 +473,9 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)::Wedge
 		wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
 		wedge[b += 1] = WedgeBond(n, n + Ny, n + 2 * Ny)
 
-		# # Set up the vertical bonds at odd column in the armchair geometry
-		# if mod(x, 2) == 1 && mod(y, 2) == 1
-		# 	latt[b += 1] = LatticeBond(n, n + 1)
-		# end
-		
-		# # Set up the vertical bonds at even column in the armchair geometry
-		# if mod(x, 2) == 0 && mod(y, 2) == 0
-		# 	if mod(y, Ny) == 0
-		# 		latt[b += 1] = LatticeBond(n, n + 1 - Ny)
-		# 	else
-		# 		latt[b += 1] = LatticeBond(n, n + 1)
-		# 	end
-		# end
 
-		# # Set up the non-vertical bonds in the bulk
-		# if x != 1 && x != Nx
-		# 	latt[b += 1] = LatticeBond(n, n + Ny)
-		# end
-
-		# # Set up the non-vertical bonds at the left edge
-		# if x == 1
-		# 	latt[b += 1] = LatticeBond(n, n + Ny)
-		# end
-
-		# # # Set up the non-vertical bonds the right edge
-		# # if x == Nx
-		# # 	latt[b += 1] = LatticeBond(n, n - Ny)
-		# # end
-		# # @show latt 
 	end
 
-
-	@show wedge
-	return Wedge
+	# @show wedge
+	return wedge
 end
