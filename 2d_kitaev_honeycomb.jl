@@ -176,7 +176,27 @@ let
       end
       vertical_wedge += 1
     end
+
+
+    if abs(w.s2 - w.s1) == 1
+      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
+        if w.s2 > w.s3
+          os .+= K, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+        else
+          os .+= K, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+        end
+      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
+        if w.s2 > w.s3
+          os .+= K, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+        else
+          os .+= K, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+        end
+      end
+      vertical_wedge += 1
+    end
   end
+  @show horizontal_wedge, vertical_wedge
+
   #***************************************************************************************************************
   #***************************************************************************************************************  
 
