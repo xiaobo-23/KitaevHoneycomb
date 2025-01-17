@@ -455,25 +455,77 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	"""
 		Use the armchair geometery
 	""" 
-	yperiodic = yperiodic && (Ny > 2)
-	N = Nx * Ny  # Number of lattice sites
-
 	
-	Nwedge = 3 * N  # Each lattice point is involved in three wedges
+	yperiodic = yperiodic && (Ny > 2)
+	Nwedge = 3 * Nx * Ny - 4 * Ny  # Number of wedges
+
 	wedge = Vector{WedgeBond}(undef, Nwedge)
 	# wedge = Wedge(undef, Nwedge)
-  	# wedge = Wedge(Nwedge)
 
 	b = 0
-	for n in 1:N
+	for n in 1 : Nwedge
 		x = div(n - 1, Ny) + 1
 		y = mod(n - 1, Ny) + 1
 		
-		wedge[b += 1] = WedgeBond(n, n + 1, n + Ny + 1)
-		wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
-		wedge[b += 1] = WedgeBond(n, n + Ny, n + 2 * Ny)
+		if x == 1
+			if mod(y, 2) == 1
+				wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
+			else
+				wedge[b += 1] = WedgeBond(n - 1, n, n + Ny)
+			end
+		end
 
+		if x == Nx
+			if mod(y, 2) == 1
+				if y == 1
+					n_next = n + Ny - 1
+				else
+					n_next = n - 1
+				end
+				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+			else
+				if y == Ny
+					n_next = n - Ny + 1
+				else
+					n_next = n + 1
+				end
+				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+			end
+			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+		end
 
+		if 1 < x < Nx
+			if mod(x, 2) == 1
+				if mod(y, 2) == 1
+					n_next = n + 1
+				else
+					n_next = n - 1
+				end
+				# wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+				# wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
+			else
+				if mod(y, 2) == 1
+					if y == 1
+						n_next = n + Ny - 1
+					else
+						n_next = n - 1
+					end
+				else
+					if y == Ny
+						n_next = n - Ny + 1
+					else
+						n_next = n + 1
+					end
+				end
+				# wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+				# wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
+			end
+			wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+			wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
+		end
 	end
 
 	# @show wedge
