@@ -42,7 +42,8 @@ let
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
   Jx, Jy, Jz = -1.0, -1.0, - 1.0
   alpha = 1E-4
-  h = 0.02
+  K = 1.0
+  h = 0
   @show Jx, Jy, Jz, alpha, h
 
   
@@ -58,7 +59,8 @@ let
   y_direction_twist = true
 
   
-  # Construct the honeycomb lattice with armchair geometry if OBC is used in the x direction
+  # Construct a honeycomb lattice using armchair geometry
+  # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
     @show length(lattice)
@@ -69,13 +71,21 @@ let
   number_of_bonds = length(lattice)
 
   
-  # # Select the position(s) of the vacancies
+  # Construct the wedges in order to set up three-body interactions  
+  wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
+  @show length(wedge)
+  # @show wedge
+
+  
+  # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
   sites_to_delete = Set{Int64}()
   lattice_sites   = Set{Int64}()
   
-  
+  #***************************************************************************************************************
+  #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
+  # Construct the two-body interaction temrs in the Kitaev Hamiltonian
   os = OpSum()
   xbond = 0
   ybond = 0
@@ -131,9 +141,8 @@ let
   end
   @show xbond, ybond, zbond
   
-  # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction
-  # The magnetic field breaks integrability 
-  # @show length(lattice_sites), lattice_sites
+  
+  # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
     for tmp_site in lattice_sites
       os .+= -1.0 * h, "Sx", tmp_site
@@ -143,50 +152,70 @@ let
   end
   
 
-  wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
-  @show wedge
-  # for w in wedge
-  # end
- 
+  # Implement the three-body interaction terms in the Hamiltonian
+  horizontal_wedge = 0
+  vertical_wedge = 0
+  for w in wedge
+    @show w.s1, w.s2, w.s3
+    x_coordinate = div(w.s2 - 1, Ny) + 1
+    y_coordinate = mod(w.s2 - 1, Ny) + 1
+    if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
+      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
+        os .+= K, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
+        horizontal_wedge += 1
+      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
+        os .+= K, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
+        horizontal_wedge += 1
+      end
+    end
+  end
+  #***************************************************************************************************************
+  #***************************************************************************************************************  
+
+
   # Generate the indices for all loop operators along the cylinder
   loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  @show loop_indices
+  # @show loop_indices
 
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
   # @show plaquette_indices
 
-  
+  #*****************************************************************************************************
+  #*****************************************************************************************************  
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
   sites = siteinds("S=1/2", N; conserve_qns=false)
   H = MPO(os, sites)
-
 
   # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
   # numbers as `state`
   state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
   ψ₀ = randomMPS(sites, state, 20)
-
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
+  #*****************************************************************************************************
+  #*****************************************************************************************************
 
-  # Measure the initial local observables (one-point functions)
+  #*****************************************************************************************************
+  #*****************************************************************************************************
+  # Measure one-point functions of the initial state
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  #*****************************************************************************************************
+  #*****************************************************************************************************
   
-  
-  # Construct a custom observer and stop the DMRG calculation early if needed
-  
+
+  # Construct a custom observer and stop the DMRG calculation early if needed 
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
   @show custom_observer.etolerance
@@ -330,27 +359,27 @@ let
 
   @show time_machine
   
-  h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    # write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   # write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end

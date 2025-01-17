@@ -482,14 +482,12 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 				else
 					n_next = n - 1
 				end
-				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
 			else
 				if y == Ny
 					n_next = n - Ny + 1
 				else
 					n_next = n + 1
 				end
-				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
 			end
 			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
 		end
@@ -501,9 +499,6 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 				else
 					n_next = n - 1
 				end
-				# wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
-				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
-				# wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
 			else
 				if mod(y, 2) == 1
 					if y == 1
@@ -518,9 +513,6 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 						n_next = n + 1
 					end
 				end
-				# wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
-				# wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
-				# wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
 			end
 			wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
 			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
