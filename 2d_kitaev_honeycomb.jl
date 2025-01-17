@@ -162,11 +162,19 @@ let
     if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
       if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
         os .+= K, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
-        horizontal_wedge += 1
       elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
         os .+= K, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-        horizontal_wedge += 1
       end
+      horizontal_wedge += 1
+    end
+
+    if abs(w.s1 - w.s2) == 3
+      if w.s1 < w.s2
+        os .+= K, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
+      else
+        os .+= K, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+      end
+      vertical_wedge += 1
     end
   end
   #***************************************************************************************************************
