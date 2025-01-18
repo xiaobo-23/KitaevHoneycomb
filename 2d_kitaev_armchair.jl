@@ -27,7 +27,7 @@ OMP_NUM_THREADS = 8
 @show BLAS.get_num_threads()
 
 
-const Nx_unit = 4
+const Nx_unit = 15
 const Ny_unit = 4
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
@@ -295,7 +295,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -454,27 +454,27 @@ let
 
   @show time_machine
   
-  h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    # write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   # write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end

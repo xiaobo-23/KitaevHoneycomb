@@ -1,6 +1,6 @@
 #!/bin/bash
 
-fields=(0.0001)
+fields=(0.11)
 lambda_array=($(seq 0.05  0.01  0.12))
 lambda_left=(0.05  0.05  0.06  0.06  0.07  0.07  0.08  0.08  0.09  0.09  0.1  0.1  0.11  0.11  0.12  0.12)
 lambda_right=(0.05  -0.05  0.06  -0.06  0.07  -0.07  0.08  -0.08  0.09  -0.09  0.1  -0.1  0.11  -0.11  0.12  -0.12)
@@ -26,7 +26,7 @@ do
     cd h$field
         # # Linux version
         sed -i "s/h=0.0/h=$field/g" 2d_kitaev_vacancy_flux_extraction.jl
-        sed -i "s/nid000000/nid004158/g"  jobs_submission_lambda1
+        sed -i "s/nid000000/nid004161/g"  jobs_submission_lambda1
         
         # # MacOS version
         # sed -i "" "s/h=0.0/h=$field/g" 2d_kitaev_vacancy_flux_extraction.jl

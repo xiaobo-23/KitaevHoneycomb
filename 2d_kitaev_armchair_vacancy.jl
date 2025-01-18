@@ -40,15 +40,15 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx, Jy, Jz = -1.0, -1.0, - 1.0
+  Jx, Jy, Jz = 1.0, 1.0, 1.0
   alpha = 1E-4
-  h = 0.02
+  h=0
   @show Jx, Jy, Jz, alpha, h
 
   
   # Set up the perturbation strength for the string and plaquette operators
-  lambda_left  = 0.1
-  lambda_right = 1.0 * lambda_left
+  lambda_left=0.1
+  lambda_right=0.1
   eta = abs(lambda_left)  # The strength of the plaquette perturbation
   @show lambda_left, lambda_right, eta  # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
   
@@ -187,6 +187,7 @@ let
         string_operator[8], pinning_sites[mirror_index, 8]
 
       # @show index, lambda_left, mirror_index, lambda_right
+      @show pinning_sites[index, :], pinning_sites[mirror_index, :]
     end
   end
   #*************************************************************************************************************************
@@ -206,11 +207,12 @@ let
   if abs(eta) > 1E-8
     for index in 1 : size(plaquette_perturbation_indices, 1)
       tmp_indices = plaquette_perturbation_indices[index, :]
+      @show tmp_indices
       if 58 in tmp_indices
         error("ERROR: Adding plaquette perturbation to the vacancy site!")
       end
       
-
+      
       os .+= eta, plaquette_operator[1], tmp_indices[1], 
         plaquette_operator[2], tmp_indices[2], 
         plaquette_operator[3], tmp_indices[3], 
@@ -221,7 +223,6 @@ let
   end
   #*************************************************************************************************************************
   #*************************************************************************************************************************
-
 
 
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -236,14 +237,15 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 5
-  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  nsweeps =  2
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3500]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
 
+  
   # Measure the initial local observables (one-point functions)
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
@@ -392,27 +394,27 @@ let
 
   @show time_machine
   
-  h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "Plaquette", W_operator_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    # write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "Plaquette", W_operator_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   # write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end

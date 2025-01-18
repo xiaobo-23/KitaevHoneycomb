@@ -57,9 +57,6 @@
 # """
 # const Lattice = Vector{LatticeBond}
 
-
-# # include("/Users/boxiao/.julia/packages/ITensors/MnaxI/src/physics/lattices.jl")
-
 # """
 #     honeycomb_lattice(Nx::Int,
 #                        Ny::Int;
@@ -81,7 +78,7 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
   
   	latt = Lattice(undef, Nbond)
@@ -118,6 +115,66 @@ function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 end
 
 
+# 01/06/2025
+# Implement the honeycomb lattice geometry using the armchair pattern
+function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+	"""
+		Use the armchair pattern 
+		The number of rows needs to be an even number 
+	"""
+	
+	if Ny % 2 != 0
+		error("The number of rows (Ny) needs to be an even number.")
+	end
+
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
+	@show Nbond
+  
+  	latt = Lattice(undef, Nbond)
+  	b = 0
+	for n in 1:N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+
+		# Set up the vertical bonds at odd column in the armchair geometry
+		if mod(x, 2) == 1 && mod(y, 2) == 1
+			latt[b += 1] = LatticeBond(n, n + 1)
+		end
+		
+		# Set up the vertical bonds at even column in the armchair geometry
+		if mod(x, 2) == 0 && mod(y, 2) == 0
+			if mod(y, Ny) == 0
+				latt[b += 1] = LatticeBond(n, n + 1 - Ny)
+			else
+				latt[b += 1] = LatticeBond(n, n + 1)
+			end
+		end
+
+		# Set up the non-vertical bonds in the bulk
+		if x != 1 && x != Nx
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+
+		# Set up the non-vertical bonds at the left edge
+		if x == 1
+			latt[b += 1] = LatticeBond(n, n + Ny)
+		end
+
+		# # Set up the non-vertical bonds the right edge
+		# if x == Nx
+		# 	latt[b += 1] = LatticeBond(n, n - Ny)
+		# end
+		# @show latt 
+	end
+	
+	# @show latt 
+	return latt
+end
+
+
+
 function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	  Using the ring ordering scheme
@@ -125,7 +182,7 @@ function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
 	
 	latt = Lattice(undef, Nbond)
@@ -176,7 +233,7 @@ function honeycomb_lattice_rings_right_twist(Nx::Int, Ny::Int; yperiodic=false):
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? -1 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? -1 : -trunc(Int, Nx / 2))
 	@show Nbond
 	
 	latt = Lattice(undef, Nbond)
@@ -220,7 +277,7 @@ function honeycomb_lattice_rings_reorder(Nx::Int, Ny::Int; yperiodic=false)::Lat
 	"""
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	# @show Nbond
   
   	latt = Lattice(undef, Nbond)
@@ -281,7 +338,7 @@ function honeycomb_lattice_Cstyle(Nx::Int, Ny::Int; yperiodic=false)::Lattice
   """
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
-	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : trunc(Int, Nx / 2))
+	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
 	@show Nbond
   
 	latt = Lattice(undef, Nbond)
@@ -352,4 +409,117 @@ function honeycomb_lattice_rings_map_to_1d_chains(Nx::Int, Ny::Int)::Lattice
 	end
 
 	return latt
+end
+
+
+
+
+# 1/16/2025
+# Define a wedge bond to introduce the three-body interaction
+struct WedgeBond
+  s1::Int
+  s2::Int
+  s3::Int
+  x1::Float64
+  y1::Float64
+  x2::Float64
+  y2::Float64
+  x3::Float64
+  y3::Float64
+  type::String
+end
+
+
+function WedgeBond(s1::Int, s2::Int, s3::Int)
+	return WedgeBond(s1, s2, s3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, "")
+end
+
+
+function WedgeBond(
+  s1::Int, s2::Int, s3::Int, x1::Real, y1::Real, x2::Real, y2::Real, x3::Real, y3::Real, bondtype::String=""
+)
+  cf(x) = convert(Float64, x)
+  return WedgeBond(s1, s2, s3, cf(x1), cf(y1), cf(x2), cf(y2), cf(x3), cf(y3), bondtype)
+end
+
+
+# """
+# Wedge is an alias for Vector{WedgeBond}
+# """
+# const Wedge = Vector{WedgeBond}
+
+
+# 01/06/2025
+# Implement the honeycomb lattice geometry using the armchair pattern
+function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
+	"""
+		Use the armchair geometery
+	""" 
+	
+	yperiodic = yperiodic && (Ny > 2)
+	Nwedge = 3 * Nx * Ny - 4 * Ny  # Number of wedges
+
+	wedge = Vector{WedgeBond}(undef, Nwedge)
+	# wedge = Wedge(undef, Nwedge)
+
+	b = 0
+	for n in 1 : Nwedge
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+		
+		if x == 1
+			if mod(y, 2) == 1
+				wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
+			else
+				wedge[b += 1] = WedgeBond(n - 1, n, n + Ny)
+			end
+		end
+
+		if x == Nx
+			if mod(y, 2) == 1
+				if y == 1
+					n_next = n + Ny - 1
+				else
+					n_next = n - 1
+				end
+			else
+				if y == Ny
+					n_next = n - Ny + 1
+				else
+					n_next = n + 1
+				end
+			end
+			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+		end
+
+		if 1 < x < Nx
+			if mod(x, 2) == 1
+				if mod(y, 2) == 1
+					n_next = n + 1
+				else
+					n_next = n - 1
+				end
+			else
+				if mod(y, 2) == 1
+					if y == 1
+						n_next = n + Ny - 1
+					else
+						n_next = n - 1
+					end
+				else
+					if y == Ny
+						n_next = n - Ny + 1
+					else
+						n_next = n + 1
+					end
+				end
+			end
+			wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
+			wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
+		end
+	end
+
+	# @show wedge
+	return wedge
 end

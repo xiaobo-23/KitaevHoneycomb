@@ -17,7 +17,7 @@ mutable struct CustomObserver <: AbstractObserver
   end
   
   
-  function CustomObserver(; etolerance=0.5*1E-2, minsweeps=2)
+  function CustomObserver(; etolerance=0.5*1E-9, minsweeps=2)
     return CustomObserver(
       Float64[], 
       Float64[],
