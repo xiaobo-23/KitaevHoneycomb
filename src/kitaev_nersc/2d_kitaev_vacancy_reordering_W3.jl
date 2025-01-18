@@ -1,15 +1,18 @@
-# Simulate the 2d Kitaev model on a honeycomb lattice 
-# Introduce vacancies, magnetic fields, string operators, and plaquette operators
+# 01/18/2025
+# Simulate two-dimensional Kitaev model on the honeycomb lattice with vacancies
+# With magnetic field applied in the [111] direction, loop and plaquette purterbations
+
 using ITensors, ITensorMPS
 using HDF5
 using MKL
 using TimerOutputs
 using LinearAlgebra
 
-include("../../HoneycombLattice.jl")
-include("../../Entanglement.jl")
-include("../../TopologicalLoops.jl")
-include("../../CustomObserver.jl")
+
+include("HoneycombLattice.jl")
+include("Entanglement.jl")
+include("TopologicalLoops.jl")
+include("CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -17,42 +20,46 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
+# Monitor the number of threads used by BLAS and LAPACK
+@show BLAS.get_config()
+@show BLAS.get_num_threads()
+
+
+# Set up the parameters for the lattice
+# Number of unit cells in x and y directions
+const Nx_unit = 15
+const Ny_unit = 3
+const Nx = 2 * Nx_unit
+const Ny = Ny_unit
+const N = Nx * Ny
 # Timing and profiling
 const time_machine = TimerOutput()
 
 let
-  # Monitor the number of threads used by BLAS and LAPACK
-  @show BLAS.get_config()
-  @show BLAS.get_num_threads()
-
-  # Set up the parameters for the lattice
-  # Number of unit cells in x and y directions
-  Nx_unit_cell = 15
-  Ny_unit_cell = 3
-  Nx = 2 * Nx_unit_cell
-  Ny = Ny_unit_cell
-  N = Nx * Ny
-
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx = Jy = Jz = -1.0
+  Jx, Jy, Jz = 1.0, 1.0, 1.0
   alpha = 1E-4
   h=0.0
   @show Jx, Jy, Jz, alpha, h
 
-  # Set up the perturbation strength for loop operators
+
+  # Set up the perturbation strength for the loop operators
   lambda_left=0
   lambda_right=0
 
-  # The strength of the plaquette perturbation
-  # Use a positive sign here to lower the energy, given the plaquette operator is negative
+  
+  # Set up the perturbation strength for the plaquette operators
+  # Use a positive sign here to lower the energy, consdering using "iY" for the Sy operator
   eta = abs(lambda_left)
   @show lambda_left, lambda_right, eta
+
 
   # honeycomb lattice implemented in the ring ordering scheme
   x_direction_periodic = false
   y_direction_twist = false
+
 
   if x_direction_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic = true)
@@ -83,13 +90,13 @@ let
 
   
   # Add pinning fields to the lattice in a symmetric format for OBC
-  pinning_seeds = collect(1 : Nx_unit_cell)
+  pinning_seeds = collect(1 : Nx_unit)
   deleteat!(pinning_seeds, 8) 
   @show pinning_seeds
 
   
   # # Add pinning fields to the lattice in a symmetric format for TBC
-  # pinning_seeds = collect(1 : Nx_unit_cell)
+  # pinning_seeds = collect(1 : Nx_unit)
   # deleteat!(pinning_seeds, 16)
   # deleteat!(pinning_seeds, 8) 
   # @show pinning_seeds
@@ -170,148 +177,84 @@ let
   end
   @show string_operators
 
-
-  # # Add the index of the pinning sites into a matrix for TBC
-  # pinning_sites = Matrix{Int64}(undef, length(pinning_seeds), 2 * Ny)
-  # for index in eachindex(pinning_seeds)
-  #   pinning_sites[index, 1] = pinning_seeds[index] * 2 * Ny + 1
-  #   pinning_sites[index, 2] = (2 * pinning_seeds[index] - 1) * Ny + 1
-  #   pinning_sites[index, 3] = pinning_sites[index, 2] - 2
-  #   pinning_sites[index, 4] = pinning_sites[index, 2] + 1
-  #   pinning_sites[index, 5] = pinning_sites[index, 2] - 1
-  #   pinning_sites[index, 6] = pinning_sites[index, 2] + 2
-  # end
-
-  # Add the index of the pinning sites into a matrix for OBC
+  #***************************************************************************************************************
+  #***************************************************************************************************************
+  # Generate the indices of all loop perturbation operators
   pinning_sites = Matrix{Int64}(undef, length(pinning_seeds), 2 * Ny)
   for index in eachindex(pinning_seeds)
     for index_tmp in 1 : 2 * Ny
       pinning_sites[index, index_tmp] = 2 * (pinning_seeds[index] - 1) * Ny + index_tmp
     end
-    println("")
-    @show pinning_sites[index, :]
-    println("")
   end
+ 
   
   # Add perturbation to the left of the vacancy
-  println("")
-  println("Adding loop perturbations to the left of the vacancy:")
   if abs(lambda_left) > 1E-8
-    for index in 1 : Int(size(pinning_sites, 1) / 2)
-      @show index, lambda_left
+    println("")
+    println("****************************************************************************************")
+    println("Adding the loop purterbations near the vacancy.")
+    println("****************************************************************************************")
+    println("")
+
+    for index in 1 : div(size(pinning_sites, 1), 2)
       os .+= -1.0 * lambda_left, string_operators[1], pinning_sites[index, 1], 
         string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
         string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
         string_operators[6], pinning_sites[index, 6]
-    end
-  end
-  println("")
 
-  # Add perturbation to the right of the vacancy
-  println("")
-  println("Adding loop perturbations to the right of the vacancy:")
-  if abs(lambda_right) > 1E-8
-    for index in Int(size(pinning_sites, 1) / 2) + 1 : size(pinning_sites, 1)
-      @show index, lambda_right
-      os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[index, 1], 
-        string_operators[2], pinning_sites[index, 2], string_operators[3], pinning_sites[index, 3], 
-        string_operators[4], pinning_sites[index, 4], string_operators[5], pinning_sites[index, 5], 
-        string_operators[6], pinning_sites[index, 6]
+      mirror_index = index + div(size(pinning_sites, 1), 2)
+      os .+= -1.0 * lambda_right, string_operators[1], pinning_sites[mirror_index, 1], 
+        string_operators[2], pinning_sites[mirror_index, 2], string_operators[3], pinning_sites[mirror_index, 3], 
+        string_operators[4], pinning_sites[mirror_index, 4], string_operators[5], pinning_sites[mirror_index, 5], 
+        string_operators[6], pinning_sites[mirror_index, 6] 
+      @show index, mirror_index
+      @show pinning_sites[index, :], pinning_sites[mirror_index, :]
     end
-  end 
-  println("")
-  
-  
-  # Add the plaquette perturbation to the cylinder
-  plaquette_seeds = Vector{Int64}([])
-  for index in 1 : Nx_unit_cell - 1
-    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit_cell + 1)
-    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit_cell + 2)
-    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit_cell + 3)
   end
-  println("")
-  println("")
-  @show size(plaquette_seeds)
-  @show plaquette_seeds
-  println("")
-  println("")
+  #***************************************************************************************************************
+  #***************************************************************************************************************
+
+  #***************************************************************************************************************
+  #***************************************************************************************************************  
+  # Adding plaquette perturbations into the cylinder
+
+  plaquette_seeds = Vector{Int64}([])
+  for index in 1 : Nx_unit - 1
+    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit + 1)
+    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit + 2)
+    push!(plaquette_seeds, 2 * (index - 1) * Ny_unit + 3)
+  end
+ 
 
   plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"])
-  if y_direction_twist
-    plaquette_indices = PlaquetteList_RightTiwst(Nx_unit_cell, Ny_unit_cell, "rings", false)
-  else
-    plaquette_indices = PlaquetteListReordering(Nx_unit_cell, Ny_unit_cell, "rings", false, plaquette_seeds)
-    # plaquette_indices = PlaquetteList(Nx_unit_cell, Ny_unit_cell, "rings", false)
-  end
-
-
-  # # Remove plaquette perturbations near the vacancy for TBC
-  # println("The size of the orginal list of plaquettes:")
-  # @show size(plaquette_indices)
-  # println("")
-  # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), range(13, 30, step = 1)), :]
-  # println("The size of the truncated list of plaquettes:")
-  # @show size(tmp_plaquette_indices)
-  # println("")
-
-  # if eta > 1E-8
-  #   for index in 1 : size(tmp_plaquette_indices, 1)
-  #     println("")
-  #     @show tmp_plaquette_indices[index, :]
-  #     println("")
-
-  #     os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
-  #     plaquette_operator[2], tmp_plaquette_indices[index, 2], 
-  #     plaquette_operator[3], tmp_plaquette_indices[index, 3], 
-  #     plaquette_operator[4], tmp_plaquette_indices[index, 4], 
-  #     plaquette_operator[5], tmp_plaquette_indices[index, 5], 
-  #     plaquette_operator[6], tmp_plaquette_indices[index, 6]
-
-  #     # Only remove three plaquette perturbations near the vacancy
-  #     # if 44 ∉ plaquette_indices[index, :]
-  #     #   # println("")
-  #     #   # @show plaquette_indices[index, :]
-  #     #   # println("")
-  #     #   # @show size(os)
-
-  #     #   os .+= eta, plaquette_operator[1], plaquette_indices[index, 1], 
-  #     #   plaquette_operator[2], plaquette_indices[index, 2], 
-  #     #   plaquette_operator[3], plaquette_indices[index, 3], 
-  #     #   plaquette_operator[4], plaquette_indices[index, 4], 
-  #     #   plaquette_operator[5], plaquette_indices[index, 5], 
-  #     #   plaquette_operator[6], plaquette_indices[index, 6]
-  #     # end 
-  #   end
-  # end
-
+  plaquette_indices = PlaquetteListReordering(Nx_unit, Ny_unit, "rings", false, plaquette_seeds)
+  @show plaquette_indices 
 
   # Remove plaquette perturbations near the vacancy for OBC
-  # println("The size of the orginal list of plaquettes:")
-  # @show size(plaquette_indices)
-  # @show plaquette_indices
-  # println("")
+  tmp_plaquettes = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [20, 21, 24]), :]
+  println("")
+  println("The size of the truncated list of plaquettes:")
+  @show size(tmp_plaquettes)
+  @show tmp_plaquettes 
+  println("")
 
-  # tmp_plaquette_indices = plaquette_indices[setdiff(1 : size(plaquette_indices, 1), [20, 21, 24]), :]
-  
-  # println("The size of the truncated list of plaquettes:")
-  # @show size(tmp_plaquette_indices)
-  # @show tmp_plaquette_indices  
-  # println("")
+  if eta > 1E-8
+    for index in 1 : size(tmp_plaquettes, 1)
+      tmp_indices = tmp_plaquettes[index, :] 
+      println("")
+      @show tmp_indices
+      println("")
 
-  # if eta > 1E-8
-  #   for index in 1 : size(tmp_plaquette_indices, 1)
-  #     println("")
-  #     @show tmp_plaquette_indices[index, :]
-  #     println("")
-
-  #     os .+= eta, plaquette_operator[1], tmp_plaquette_indices[index, 1], 
-  #     plaquette_operator[2], tmp_plaquette_indices[index, 2], 
-  #     plaquette_operator[3], tmp_plaquette_indices[index, 3], 
-  #     plaquette_operator[4], tmp_plaquette_indices[index, 4], 
-  #     plaquette_operator[5], tmp_plaquette_indices[index, 5], 
-  #     plaquette_operator[6], tmp_plaquette_indices[index, 6]
-  #   end
-  # end
+      os .+= eta, plaquette_operator[1], tmp_indices[1], 
+        plaquette_operator[2], tmp_indices[2], 
+        plaquette_operator[3], tmp_indices[3], 
+        plaquette_operator[4], tmp_indices[4], 
+        plaquette_operator[5], tmp_indices[5], 
+        plaquette_operator[6], tmp_indices[6]
+    end
+  end
+  #***************************************************************************************************************
+  #***************************************************************************************************************  
 
   
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -326,8 +269,8 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 25
-  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  nsweeps = 1
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3500]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
@@ -406,14 +349,13 @@ let
   @timeit time_machine "loop operators" begin
     # Construct the loop indices along the y direction with/without y_direction_twist
     if y_direction_twist
-      yloop_indices = LoopList_RightTwist(Nx_unit_cell, Ny_unit_cell, "rings", "y"); # @show yloop_indices
+      yloop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y"); # @show yloop_indices
     else
-      yloop_indices = LoopList(Nx_unit_cell, Ny_unit_cell, "rings", "y"); # @show yloop_indices
+      yloop_indices = LoopList(Nx_unit, Ny_unit, "rings", "y"); # @show yloop_indices
     end
     yloop_eigenvalues = Vector{Float64}(undef, size(yloop_indices)[1])
     
-    
-    
+  
     # Compute eigenvalues of the loop operators in the direction with PBC.
     for loop_index in 1 : size(yloop_indices)[1]
       @show yloop_indices[loop_index, :]
@@ -481,8 +423,6 @@ let
   @show custom_observer.ehistory_full
   @show custom_observer.ehistory
   @show custom_observer.chi
-  # @show number_of_bonds, energy / number_of_bonds
-  # @show N, energy / N
   
 
   println("")
@@ -516,7 +456,7 @@ let
 
   @show time_machine
   
-  h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/TBC/epsilon1E-10/W3/AFM/lambda_file/configuration_file/data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
+  h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/PBC/epsilon1E-10/W3/FM_Refine/lambda_file/configuration_file/data/2d_kitaev_honeycomb_h$(h).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
