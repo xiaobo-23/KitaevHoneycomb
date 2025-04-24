@@ -40,7 +40,7 @@ let
   # Set up the interaction parameters for the Hamiltonian
   # |Jx| <= |Jy| + |Jz| in the gapless A-phase
   # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx, Jy, Jz = -1.0, -1.0, - 1.0
+  Jx, Jy, Jz = -1.0, -1.0, -1.0
   alpha = 1E-4
   K = 1.0
   h = 0
@@ -108,6 +108,7 @@ let
       zbond += 1
       @show b.s1, b.s2, "Sz"
     else
+      
       if mod(tmp_x, 2) == 1 
         if mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
           os .+= -coefficient_Jx, "Sx", b.s1, "Sx", b.s2
@@ -312,7 +313,6 @@ let
   end
 
 
-
   # # Compute the eigenvalues of the order parameters near vacancies
   # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
   # # need to genealize in the future to automatically generate the loop indices near vacancies
@@ -385,7 +385,9 @@ let
   # @show order_parameter
   # println("")
 
+
   @show time_machine
+  
   
   # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
   #   write(file, "psi", ψ)
