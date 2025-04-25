@@ -41,7 +41,6 @@ let
   Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
   κ = 0.2                        # The three-spin interaction strength       
   t = 1.0                                      # The hopping amplitude 
-  
   h = 0
   alpha = 1E-4
   @show Jx, Jy, Jz, alpha, h
@@ -85,7 +84,6 @@ let
 
   #***************************************************************************************************************
   #***************************************************************************************************************  
-  # Construct the Hamiltonian using OpSum
   # Construct the Kitave interaction and the hopping terms
   os = OpSum()
   xbond = 0
@@ -111,7 +109,14 @@ let
           xbond += 1
           @show b.s1, b.s2, "Sx"
         elseif mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
-          os .+= -Jy, "Sy", b.s1, "Sy", b.s2
+          # Set up the Sy * Sy interaction using two different ways
+          # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
+          
+          os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
+          os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
+          os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
+          os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
+          
           ybond += 1
           @show b.s1, b.s2, "Sy"
         end
@@ -121,7 +126,14 @@ let
           xbond += 1
           @show b.s1, b.s2, "Sx"
         elseif mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
-          os .+= -Jy, "Sy", b.s1, "Sy", b.s2
+          # Set up the Sy * Sy interaction using two different ways
+          # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
+          
+          os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
+          os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
+          os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
+          os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
+
           ybond += 1
           @show b.s1, b.s2, "Sy"
         end
@@ -132,12 +144,14 @@ let
   @show xbond, ybond, zbond
   @show lattice_sites
   
+  
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
-    for tmp_site in lattice_sites
-      os .+= -1.0 * h, "Sx", tmp_site
-      os .+= -0.5 * h, "iS-" - "iS+", tmp_site
-      os .+= -1.0 * h, "Sz", tmp_site
+    for site in lattice_sites
+      os .+= -1.0 * h, "Sx", site
+      os .+= -0.5 * h, "iS-", site
+      os .+= 0.5 * h, "iS+", site
+      os .+= -1.0 * h, "Sz", site
     end
   end
   
@@ -191,15 +205,15 @@ let
   # #***************************************************************************************************************  
 
 
-  # # Generate the indices for all loop operators along the cylinder
-  # loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
-  # loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  # # @show loop_indices
+  # Generate the indices for all loop operators along the cylinder
+  loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
+  loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
+  # @show loop_indices
 
-  # # Generate the plaquette indices for all the plaquettes in the cylinder
-  # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
-  # plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  # # @show plaquette_indices
+  # Generate the plaquette indices for all the plaquettes in the cylinder
+  plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
+  plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
+  # @show plaquette_indices
 
   #*****************************************************************************************************
   #*****************************************************************************************************  
@@ -213,7 +227,7 @@ let
   ψ₀ = randomMPS(sites, state, 20)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 5
+  nsweeps = 3
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -261,27 +275,27 @@ let
   # # end
 
 
-  # # # Compute the eigenvalues of plaquette operators
-  # # # normalize!(ψ)
-  # # @timeit time_machine "plaquette operators" begin
-  # #   W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
+  # Compute the eigenvalues of plaquette operators
+  # normalize!(ψ)
+  @timeit time_machine "plaquette operators" begin
+    W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
     
-  # #   # Compute the eigenvalues of the plaquette operator
-  # #   for index in 1 : size(plaquette_indices, 1)
-  # #     @show plaquette_indices[index, :]
-  # #     os_w = OpSum()
-  # #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-  # #       plaquette_operator[2], plaquette_indices[index, 2], 
-  # #       plaquette_operator[3], plaquette_indices[index, 3], 
-  # #       plaquette_operator[4], plaquette_indices[index, 4], 
-  # #       plaquette_operator[5], plaquette_indices[index, 5], 
-  # #       plaquette_operator[6], plaquette_indices[index, 6]
-  # #     W = MPO(os_w, sites)
-  # #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-  # #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-  # #   end
-  # # end
-  # # @show W_operator_eigenvalues
+    # Compute the eigenvalues of the plaquette operator
+    for index in 1 : size(plaquette_indices, 1)
+      @show plaquette_indices[index, :]
+      os_w = OpSum()
+      os_w += plaquette_operator[1], plaquette_indices[index, 1], 
+        plaquette_operator[2], plaquette_indices[index, 2], 
+        plaquette_operator[3], plaquette_indices[index, 3], 
+        plaquette_operator[4], plaquette_indices[index, 4], 
+        plaquette_operator[5], plaquette_indices[index, 5], 
+        plaquette_operator[6], plaquette_indices[index, 6]
+      W = MPO(os_w, sites)
+      W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
+      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+    end
+  end
+  @show W_operator_eigenvalues
   
   # # # Compute the eigenvalues of the loop operators 
   # # # The loop operators depend on the width of the cylinder  
