@@ -1,6 +1,6 @@
-## 04/24/2025
-## Simulate the 2D tJ-Kitaev honeycomb model using the ITensor library
-## Introducing three-spin interaction, electron hopping, and anisotropic spin exchange
+# 04/24/2025
+# Simulate the 2D tJ-Kitaev honeycomb model to design topologucal qubits based on quantum spin liquids (QSLs)
+# Introduce three-spin interaction, electron hopping, and Kitaev interaction; remove the spin vacancy
 
 
 using ITensors
@@ -37,13 +37,13 @@ const time_machine = TimerOutput()
 
 
 let
-  # Set up the interaction parameters for the Hamiltonian
-  # |Jx| <= |Jy| + |Jz| in the gapless A-phase
-  # |Jx| > |Jy| + |Jz| in the gapped B-phase
-  Jx, Jy, Jz = -1.0, -1.0, -1.0
-  alpha = 1E-4
-  κ = 1.0
+  # Set up the parameters in the Hamiltonian
+  Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
+  κ = 0.2                        # The three-spin interaction strength       
+  t = 1.0                                      # The hopping amplitude 
+  
   h = 0
+  alpha = 1E-4
   @show Jx, Jy, Jz, alpha, h
 
   
@@ -54,7 +54,7 @@ let
   @show lambda_left, lambda_right, eta  # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
   
 
-  # honeycomb lattice implemented in the ring ordering scheme
+  # Bondary conditions and the mapping scheme
   x_periodic = false
   y_direction_twist = true
 
@@ -71,26 +71,31 @@ let
   number_of_bonds = length(lattice)
 
   
-  # Construct the wedges in order to set up three-body interactions  
+  # Construct the wedges in order to set up three-body spin interactions
   wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
-  @show length(wedge)
-  # @show wedge
+  @show length(wedge), wedge 
 
   
   # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
-  sites_to_delete = Set{Int64}()
+  # sites_to_delete = Set{Int64}()
   lattice_sites   = Set{Int64}()
   
   #***************************************************************************************************************
   #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
-  # Construct the two-body interaction temrs in the Kitaev Hamiltonian
+  # Construct the Kitave interaction and the hopping terms
   os = OpSum()
   xbond = 0
   ybond = 0
   zbond = 0
   for b in lattice
+    # Set up the hopping terms for spin-up and spin-down electrons
+    os .+= -t, "Cdagup", b.s1, "Cup", b.s2
+    os .+= -t, "Cdagup", b.s2, "Cup", b.s1
+    os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
+    os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
+
     tmp_x = div(b.s1 - 1, Ny) + 1
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
@@ -129,7 +134,7 @@ let
     end
   end
   @show xbond, ybond, zbond
-  
+  @show lattice_sites
   
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
