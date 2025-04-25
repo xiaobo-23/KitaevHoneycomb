@@ -79,8 +79,10 @@ let
   # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
   # sites_to_delete = Set{Int64}()
-  lattice_sites   = Set{Int64}()
-  
+  # lattice_sites = Set{Int64}()
+  lattice_sites = Set{Int64}(1 : N)                  # The set of all sites in the lattice
+  @show lattice_sites
+
   #***************************************************************************************************************
   #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
@@ -96,6 +98,7 @@ let
     os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
     os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
 
+    # Set up the anisotropic Kitaev interaction
     tmp_x = div(b.s1 - 1, Ny) + 1
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
@@ -124,15 +127,8 @@ let
         end
       end
     end
-
-    if !in(b.s1, lattice_sites)
-      push!(lattice_sites, b.s1)
-    end
-
-    if !in(b.s2, lattice_sites)
-      push!(lattice_sites, b.s2)
-    end
   end
+  
   @show xbond, ybond, zbond
   @show lattice_sites
   
@@ -205,49 +201,49 @@ let
   # plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
   # # @show plaquette_indices
 
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************  
-  # # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
-  # sites = siteinds("tJ", N; conserve_qns=false)
-  # H = MPO(os, sites)
+  #*****************************************************************************************************
+  #*****************************************************************************************************  
+  # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
+  sites = siteinds("tJ", N; conserve_qns=false)
+  H = MPO(os, sites)
 
-  # # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
-  # # numbers as `state`
-  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  # ψ₀ = randomMPS(sites, state, 20)
+  # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
+  # numbers as `state`
+  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  ψ₀ = randomMPS(sites, state, 20)
   
-  # # Set up the parameters including bond dimensions and truncation error
-  # nsweeps = 1
-  # maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
-  # cutoff  = [1E-10]
-  # eigsolve_krylovdim = 50
+  # Set up the parameters including bond dimensions and truncation error
+  nsweeps = 5
+  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  cutoff  = [1E-10]
+  eigsolve_krylovdim = 50
   
   # # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # # noise = [1E-6, 1E-7, 1E-8, 0.0]
   # #*****************************************************************************************************
   # #*****************************************************************************************************
 
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************
-  # # Measure one-point functions of the initial state
-  # Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
-  # Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
-  # Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
-  # Sy₀ = 0.5im * (Splus₀ - Sminus₀)
-  # @show Sy₀ 
-  # Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************
+  #*****************************************************************************************************
+  #*****************************************************************************************************
+  # Measure one-point functions of the initial state
+  Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
+  Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
+  Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
+  Sy₀ = 0.5im * (Splus₀ - Sminus₀)
+  @show Sy₀ 
+  Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  #*****************************************************************************************************
+  #*****************************************************************************************************
   
 
-  # # Construct a custom observer and stop the DMRG calculation early if needed 
-  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  # custom_observer = CustomObserver()
-  # @show custom_observer.etolerance
-  # @show custom_observer.minsweeps
-  # @timeit time_machine "dmrg simulation" begin
-  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
-  # end
+  # Construct a custom observer and stop the DMRG calculation early if needed 
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
+  @timeit time_machine "dmrg simulation" begin
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  end
   
   # # Measure local observables (one-point functions) after finish the DMRG simulation
   # @timeit time_machine "one-point functions" begin
