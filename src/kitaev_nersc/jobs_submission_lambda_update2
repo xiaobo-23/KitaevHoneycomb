@@ -1,6 +1,6 @@
 #!/bin/bash
 
-fields=(0.11)
+fields=(0.007)
 lambda_array=($(seq 0.05  0.01  0.12))
 lambda_left=(-0.05  -0.05  -0.06  -0.06  -0.07  -0.07  -0.08  -0.08  -0.09  -0.09  -0.1  -0.1  -0.11  -0.11  -0.12  -0.12)
 lambda_right=(0.05  -0.05  0.06  -0.06  0.07  -0.07  0.08  -0.08  0.09  -0.09  0.1  -0.1  0.11  -0.11  0.12  -0.12)
@@ -13,7 +13,7 @@ do
     
     cd h$field
         # # # Linux version
-        sed -i "s/nid000000/nid004162/g"  jobs_submission_lambda2 
+        # sed -i "s/nid000000/nid004162/g"  jobs_submission_lambda2 
         
         # # MacOS version
         # sed -i "" "s/h=0.0/h=$field/g" 2d_kitaev_vacancy_flux_extraction.jl
@@ -39,7 +39,7 @@ do
             # sed -i "" "s/configuration_file/${configuration[index1]}/g" jobs_submission_lambda
 
             path=$(pwd)
-            cd /pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/TBC/epsilon1E-10/W4/AFM_Refine/h$field
+            cd /pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/Armchair/epsilon1E-10/W4/FM_Refine/h$field
             mkdir ${configuration[index1]}
             cd ${configuration[index1]}
             mkdir data
@@ -51,13 +51,13 @@ do
                 cd lambda${lambda_array[index2]}
 
                 index=$((index2*2+index1))
-                cp ../../2d_kitaev_vacancy_flux_extraction.jl 2d_kitaev_vacancy_flux_extraction.jl
+                cp ../../2d_kitaev_armchair_vacancy.jl 2d_kitaev_armchair_vacancy.jl
                 
                 # Linux version
-                sed -i "s/lambda_left=0/lambda_left=${lambda_left[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
-                sed -i "s/lambda_right=0/lambda_right=${lambda_right[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl
-                sed -i "s/field_file/h$field/g" 2d_kitaev_vacancy_flux_extraction.jl
-                sed -i "s/configuration_file/${configuration[index2]}/g" 2d_kitaev_vacancy_flux_extraction.jl  
+                sed -i "s/lambda_left=0/lambda_left=${lambda_left[index]}/g" 2d_kitaev_armchair_vacancy.jl
+                sed -i "s/lambda_right=0/lambda_right=${lambda_right[index]}/g" 2d_kitaev_armchair_vacancy.jl
+                sed -i "s/field_file/h$field/g" 2d_kitaev_armchair_vacancy.jl
+                sed -i "s/configuration_file/${configuration[index2]}/g" 2d_kitaev_armchair_vacancy.jl
                 
                 # # MacOS version
                 # sed -i "" "s/lambda_left=0/lambda_left=${lambda_left[index]}/g" 2d_kitaev_vacancy_flux_extraction.jl

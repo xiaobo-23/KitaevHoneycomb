@@ -8,7 +8,7 @@
 #SBATCH -J kitaev
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
-#SBATCH -t 250:00:00
+#SBATCH -t 180:00:00
 
 
 # # Set up the Julia environment
@@ -17,8 +17,8 @@
 
 for field in $(seq 0  0.01  0.15)
 do 
-    cd /global/homes/x/xiaobo23/tensor_networks/quantum_spin_liquids/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/PBC/epsilon1E-10/W3/AFM/lambda_file/configuration_file/h$field
-    srun -n 1 julia --threads=1 2d_kitaev_vacancy_flux_extraction.jl > kitaev_honeycomb_vacancy$field.log &
+    cd /global/homes/x/xiaobo23/tensor_networks/quantum_spin_liquids/non_abelian_anyons/kitaev/magnetic_fields/vacancy/extraction/Armchair/epsilon1E-10/W4/AFM/lambda_file/configuration_file/h$field
+    srun -n 1 julia --threads=1 2d_kitaev_armchair_vacancy.jl > kitaev_honeycomb_vacancy$field.log &
 done
 
 

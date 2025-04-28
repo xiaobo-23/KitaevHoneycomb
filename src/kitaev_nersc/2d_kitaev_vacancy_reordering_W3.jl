@@ -9,10 +9,10 @@ using TimerOutputs
 using LinearAlgebra
 
 
-include("HoneycombLattice.jl")
-include("Entanglement.jl")
-include("TopologicalLoops.jl")
-include("CustomObserver.jl")
+include("../../HoneycombLattice.jl")
+include("../../Entanglement.jl")
+include("../../TopologicalLoops.jl")
+include("../../CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -269,7 +269,7 @@ let
 
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
+  nsweeps = 25
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3500]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
