@@ -1,5 +1,6 @@
 data/
 notes/
+src/kitaev_cluster/
 src_arXiv/
 Presentation_Fig1c.png
 .ipynb_checkpoints
