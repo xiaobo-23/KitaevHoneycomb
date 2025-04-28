@@ -13,7 +13,7 @@ Kitaev.jl is a high-performance framework for tensor network simulations of the 
 
 It is an actively evolving project with additional features under development.
 
-![HoneycombLattice](notes/figures/manuscripts/Presentation_Fig1c.png)
+![HoneycombLattice](Presentation_Fig1c.png)
 
 ## Getting started
 

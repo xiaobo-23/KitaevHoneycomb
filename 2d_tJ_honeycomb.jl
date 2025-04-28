@@ -156,55 +156,69 @@ let
   end
   
 
-  # # Implement the three-spin interaction terms in the Hamiltonian
-  # horizontal_wedge = 0
-  # vertical_wedge = 0
-  # for w in wedge
-  #   @show w.s1, w.s2, w.s3
-  #   x_coordinate = div(w.s2 - 1, Ny) + 1
-  #   y_coordinate = mod(w.s2 - 1, Ny) + 1
-  #   if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
-  #     if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
-  #       os .+= κ, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
-  #     elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
-  #       os .+= κ, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-  #     end
-  #     horizontal_wedge += 1
-  #   end
+  # Implement the three-spin interaction terms in the Hamiltonian
+  horizontal_wedge = 0
+  vertical_wedge = 0
+  for w in wedge
+    @show w.s1, w.s2, w.s3
+    x_coordinate = div(w.s2 - 1, Ny) + 1
+    y_coordinate = mod(w.s2 - 1, Ny) + 1
+    if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
+      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
+        # os .+= κ, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+= 0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
+        # os .+= κ, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
+        os .+= 0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sy", w.s3
+        os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sy", w.s3
+      end
+      horizontal_wedge += 1
+    end
 
-  #   if abs(w.s1 - w.s2) == 3
-  #     if w.s1 < w.s2
-  #       os .+= κ, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
-  #     else
-  #       os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
-  #     end
-  #     vertical_wedge += 1
-  #   end
+    if abs(w.s1 - w.s2) == 3
+      if w.s1 < w.s2
+        # os .+= κ, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
+        os .+= 0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+        os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+      else
+        # os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+        os .+= 0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+      end
+      vertical_wedge += 1
+    end
 
 
-  #   if abs(w.s2 - w.s1) == 1
-  #     if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
-  #       if w.s2 > w.s3
-  #         os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-  #       else
-  #         os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-  #       end
-  #     elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
-  #       if w.s2 > w.s3
-  #         os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-  #       else
-  #         os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-  #       end
-  #     end
-  #     vertical_wedge += 1
-  #   end
-  # end
-  # @show horizontal_wedge, vertical_wedge
+    if abs(w.s2 - w.s1) == 1
+      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
+        if w.s2 > w.s3
+          # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+          os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
+          os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
+        else
+          # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+          os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
+          os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
+        end
+      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
+        if w.s2 > w.s3
+          # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+          os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
+          os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
+        else
+          # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+          os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
+          os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
+        end
+      end
+      vertical_wedge += 1
+    end
+  end
+  @show horizontal_wedge, vertical_wedge
 
   # #***************************************************************************************************************
   # #***************************************************************************************************************  
-
-
   # Generate the indices for all loop operators along the cylinder
   loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
@@ -230,7 +244,7 @@ let
   nsweeps = 3
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 50
+  eigsolve_krylovdim = 30
   
   # # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # # noise = [1E-6, 1E-7, 1E-8, 0.0]
@@ -275,27 +289,27 @@ let
   # # end
 
 
-  # Compute the eigenvalues of plaquette operators
-  # normalize!(ψ)
-  @timeit time_machine "plaquette operators" begin
-    W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
+  # # Compute the eigenvalues of plaquette operators
+  # # normalize!(ψ)
+  # @timeit time_machine "plaquette operators" begin
+  #   W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
     
-    # Compute the eigenvalues of the plaquette operator
-    for index in 1 : size(plaquette_indices, 1)
-      @show plaquette_indices[index, :]
-      os_w = OpSum()
-      os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-        plaquette_operator[2], plaquette_indices[index, 2], 
-        plaquette_operator[3], plaquette_indices[index, 3], 
-        plaquette_operator[4], plaquette_indices[index, 4], 
-        plaquette_operator[5], plaquette_indices[index, 5], 
-        plaquette_operator[6], plaquette_indices[index, 6]
-      W = MPO(os_w, sites)
-      W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-    end
-  end
-  @show W_operator_eigenvalues
+  #   # Compute the eigenvalues of the plaquette operator
+  #   for index in 1 : size(plaquette_indices, 1)
+  #     @show plaquette_indices[index, :]
+  #     os_w = OpSum()
+  #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
+  #       plaquette_operator[2], plaquette_indices[index, 2], 
+  #       plaquette_operator[3], plaquette_indices[index, 3], 
+  #       plaquette_operator[4], plaquette_indices[index, 4], 
+  #       plaquette_operator[5], plaquette_indices[index, 5], 
+  #       plaquette_operator[6], plaquette_indices[index, 6]
+  #     W = MPO(os_w, sites)
+  #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
+  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  #   end
+  # end
+  # @show W_operator_eigenvalues
   
   # # # Compute the eigenvalues of the loop operators 
   # # # The loop operators depend on the width of the cylinder  
