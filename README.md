@@ -1,27 +1,26 @@
-# ![Kitaev.jl]
-<!-- [![Docs dev](https://img.shields.io/badge/docs-latest-blue.svg)](https://lukas.weber.science/Carlo.jl/dev/)
-[![Docs stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://lukas.weber.science/Carlo.jl/stable/)
-[![CI](https://github.com/lukas-weber/Carlo.jl/workflows/CI/badge.svg)](https://github.com/lukas-weber/Carlo.jl/actions)
-[![codecov](https://codecov.io/gh/lukas-weber/Carlo.jl/branch/main/graph/badge.svg?token=AI8CPOGKXF)](https://codecov.io/gh/lukas-weber/Carlo.jl) -->
+# Kitaev.jl
 
-Kitaev.jl is a high-performance framework for tensor network simulations of the Kitaev honeycomb model and its variants (based on [ITensors.jl](https://docs.itensor.org/ITensors/stable/)). The package includes the following key implementations: 
+Kitaev.jl is a high-performance framework for tensor network simulations of the Kitaev honeycomb model and its variants. Built on the powerful [ITensors.jl](https://docs.itensor.org/ITensors/stable/) library, this package provides robust tools for exploring a wide range of physical phenomena. Key features include:
 
-* map narrow cylinders to matrix product states (MPS)
-* including the anisotropic Kitaev interaction, Heisenberg interaction, \gamma term, nonmagnetic spin vacancy
-* implement tailored perturbations, pinning fields to help achieving convergence.
+- Mapping narrow cylinders to matrix product states (MPS)
+- Support for anisotropic Kitaev interactions, Heisenberg interactions, \(\gamma\) terms, and nonmagnetic spin vacancies
+- Tailored perturbations and pinning fields to aid in achieving convergence
 
+This project is actively evolving, with additional features and enhancements under development.
 
-It is an actively evolving project with additional features under development.
+![Honeycomb Lattice](Presentation_Fig1c.png)
 
-![HoneycombLattice](/Users/boxiao/Research/Tensor_Networks/Kitaev_ModelPresentation_Fig1c.png)
+## Getting Started
 
-## Getting started
-
-To install the package, type
+To install the package, use the Julia package manager:
 
 ```julia
-using Pkg; Pkg.add("Kitaev")
+using Pkg
+Pkg.add("Kitaev")
 ```
 
-<!-- The package itself does not include Monte Carlo algorithms. The quickest way to see how to implement one yourself is to check out the reference implementation for the [Ising](https://github.com/lukas-weber/Ising.jl) model.
-For a state-of-the-art Monte Carlo code, take a look at [StochasticSeriesExpansion.jl](https://github.com/lukas-weber/StochasticSeriesExpansion.jl). -->
+For more information and detailed usage examples, please refer to the documentation (coming soon).
+
+---
+
+<!-- *Note: The image path has been updated to assume the image is in the same repository. Ensure the file `Presentation_Fig1c.png` is correctly placed in the repository for proper rendering.* -->
