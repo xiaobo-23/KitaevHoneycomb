@@ -39,11 +39,11 @@ const time_machine = TimerOutput()
 let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
-  κ = 0.2                        # The three-spin interaction strength       
+  κ = -1.0                       # The three-spin interaction strength       
   t = 1.0                                      # The hopping amplitude 
   h = 0
   alpha = 1E-4
-  @show Jx, Jy, Jz, alpha, h
+  @show Jx, Jy, Jz, alpha, κ, t, h
 
   
   # Set up the perturbation strength for the string and plaquette operators
@@ -57,7 +57,7 @@ let
   x_periodic = false
   y_direction_twist = true
 
-  
+
   # Construct a honeycomb lattice using armchair geometry
   # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
@@ -78,23 +78,23 @@ let
   # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
   # sites_to_delete = Set{Int64}()
-  # lattice_sites = Set{Int64}()
   lattice_sites = Set{Int64}(1 : N)                  # The set of all sites in the lattice
   @show lattice_sites
 
+  
   #***************************************************************************************************************
   #***************************************************************************************************************  
-  # Construct the Kitave interaction and the hopping terms
+  # Construct the Kitaev interaction and the hopping terms
   os = OpSum()
   xbond = 0
   ybond = 0
   zbond = 0
   for b in lattice
-    # Set up the hopping terms for spin-up and spin-down electrons
-    os .+= -t, "Cdagup", b.s1, "Cup", b.s2
-    os .+= -t, "Cdagup", b.s2, "Cup", b.s1
-    os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
-    os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
+    # # Set up the hopping terms for spin-up and spin-down electrons
+    # os .+= -t, "Cdagup", b.s1, "Cup", b.s2
+    # os .+= -t, "Cdagup", b.s2, "Cup", b.s1
+    # os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
+    # os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
 
     # Set up the anisotropic Kitaev interaction
     tmp_x = div(b.s1 - 1, Ny) + 1
@@ -168,23 +168,27 @@ let
         # os .+= κ, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+= 0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+        @show "Sy", w.s1, "Sz", w.s2, "Sx", w.s3 
       elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
         # os .+= κ, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-        os .+= 0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sy", w.s3
-        os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sy", w.s3
+        os .+= 0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        os .+= -0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
+        @show "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
       end
       horizontal_wedge += 1
     end
 
     if abs(w.s1 - w.s2) == 3
       if w.s1 < w.s2
+        # os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+        os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        @show  "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+      else
         # os .+= κ, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
         os .+= 0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
         os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-      else
-        # os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
-        os .+= 0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-        os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        @show "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
       end
       vertical_wedge += 1
     end
@@ -196,20 +200,24 @@ let
           # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
+          @show "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
         else
           # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
           os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
+          @show "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
         end
       elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
         if w.s2 > w.s3
           # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
           os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
+          @show "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
         else
           # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
+          @show "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
         end
       end
       vertical_wedge += 1
@@ -217,6 +225,7 @@ let
   end
   @show horizontal_wedge, vertical_wedge
 
+  
   # #***************************************************************************************************************
   # #***************************************************************************************************************  
   # Generate the indices for all loop operators along the cylinder
@@ -224,6 +233,7 @@ let
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
   # @show loop_indices
 
+  
   # Generate the plaquette indices for all the plaquettes in the cylinder
   plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
@@ -241,10 +251,10 @@ let
   ψ₀ = randomMPS(sites, state, 20)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 3
+  nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 30
+  eigsolve_krylovdim = 50
   
   # # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # # noise = [1E-6, 1E-7, 1E-8, 0.0]
@@ -272,6 +282,7 @@ let
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
+
   
   # # Measure local observables (one-point functions) after finish the DMRG simulation
   # @timeit time_machine "one-point functions" begin
