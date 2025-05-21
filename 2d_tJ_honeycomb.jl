@@ -96,51 +96,56 @@ let
     # os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
     # os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
 
-    # Set up the anisotropic Kitaev interaction
+    # Set up the anisotropic two-body Kitaev interaction
     tmp_x = div(b.s1 - 1, Ny) + 1
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       zbond += 1
-      @show b.s1, b.s2, "Sz"
+      @debug "Added Sz-Sz bond" s1=b.s1 s2=b.s2
+      # @show b.s1, b.s2, "Sz"
     else
       if mod(tmp_x, 2) == 1 
         if mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
           os .+= -Jx, "Sx", b.s1, "Sx", b.s2
           xbond += 1
-          @show b.s1, b.s2, "Sx"
+          @debug "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+          # @show b.s1, b.s2, "Sx"
+        
         elseif mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
           # Set up the Sy * Sy interaction using two different ways
           # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
-          
           os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
           os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
           os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
           os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
           
           ybond += 1
-          @show b.s1, b.s2, "Sy"
+          @debug "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+          # @show b.s1, b.s2, "Sy"
         end
       else
         if mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
           os .+= -Jx, "Sx", b.s1, "Sx", b.s2
           xbond += 1
-          @show b.s1, b.s2, "Sx"
+          @debug "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+          # @show b.s1, b.s2, "Sx"
         elseif mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
           # Set up the Sy * Sy interaction using two different ways
           # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
-          
           os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
           os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
           os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
           os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
 
           ybond += 1
-          @show b.s1, b.s2, "Sy"
+          @debug "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+          # @show b.s1, b.s2, "Sy"
         end
       end
     end
   end
-  
+
+   
   @show xbond, ybond, zbond
   @show lattice_sites
   
@@ -183,15 +188,29 @@ let
 
     if abs(w.s1 - w.s2) == 3
       if w.s1 < w.s2
-        # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
-        os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-        os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        if w.s2 > w.s3
+          # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
+          os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+          os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+          @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        else
+          # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
+          os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+          os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+          @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        end
       else
-        # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
-        os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-        os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-        @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        if w.s2 > w.s3 
+          # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
+          os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+          os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+          @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        else
+          # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
+          os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+          os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+          @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        end
       end
       vertical_wedge += 1
     end
@@ -277,16 +296,15 @@ let
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   #*****************************************************************************************************
   #*****************************************************************************************************
-  
 
-  # # Construct a custom observer and stop the DMRG calculation early if needed 
-  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  # custom_observer = CustomObserver()
-  # @show custom_observer.etolerance
-  # @show custom_observer.minsweeps
-  # @timeit time_machine "dmrg simulation" begin
-  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
-  # end
+  # Construct a custom observer and stop the DMRG calculation early if needed 
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
+  @timeit time_machine "dmrg simulation" begin
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  end
 
   
   # # Measure local observables (one-point functions) after finish the DMRG simulation
