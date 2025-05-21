@@ -275,7 +275,7 @@ let
   ψ₀ = randomMPS(sites, state, 20)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
+  nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -297,6 +297,7 @@ let
   #*****************************************************************************************************
   #*****************************************************************************************************
 
+  
   # Construct a custom observer and stop the DMRG calculation early if needed 
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
