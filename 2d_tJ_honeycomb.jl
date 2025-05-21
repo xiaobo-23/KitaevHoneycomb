@@ -275,7 +275,7 @@ let
   ψ₀ = randomMPS(sites, state, 20)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -307,20 +307,21 @@ let
   end
 
   
-  # # Measure local observables (one-point functions) after finish the DMRG simulation
-  # @timeit time_machine "one-point functions" begin
-  #   Sx = expect(ψ, "Sx", sites = 1 : N)
-  #   Splus  = expect(ψ, "S+", sites = 1 : N)
-  #   Sminus = expect(ψ, "S-", sites = 1 : N)
-  #   Sy = 0.5im * (Splus - Sminus)
-  #   Sz = expect(ψ, "Sz", sites = 1 : N)
-  # end
+  # Measure local observables (one-point functions) after finish the DMRG simulation
+  @timeit time_machine "one-point functions" begin
+    Sx = expect(ψ, "Sx", sites = 1 : N)
+    Splus  = expect(ψ, "S+", sites = 1 : N)
+    Sminus = expect(ψ, "S-", sites = 1 : N)
+    Sy = 0.5im * (Splus - Sminus)
+    Sz = expect(ψ, "Sz", sites = 1 : N)
+  end
 
-  # # @timeit time_machine to "two-point functions" begin
-  # #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  # #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  # #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-  # # end
+  
+  @timeit time_machine "two-point functions" begin
+    xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+    zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
+    # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
+  end
 
 
   # # Compute the eigenvalues of plaquette operators
@@ -413,16 +414,17 @@ let
   # # @show N, energy / N
   # println("")
 
-  # # Check the variance of the energy
-  # @timeit time_machine "compaute the variance" begin
-  #   H2 = inner(H, ψ, H, ψ)
-  #   E₀ = inner(ψ', H, ψ)
-  #   variance = H2 - E₀^2
-  # end
-  # println("")
-  # @show E₀
-  # println("Variance of the energy is $variance")
-  # println("")
+
+  # Check the variance of the energy
+  @timeit time_machine "compaute the variance" begin
+    H2 = inner(H, ψ, H, ψ)
+    E₀ = inner(ψ', H, ψ)
+    variance = H2 - E₀^2
+  end
+  println("")
+  @show E₀
+  println("Variance of the energy is $variance")
+  println("")
   
 
   # println("")
@@ -445,27 +447,27 @@ let
   @show time_machine
   
 
-  # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   # write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   # write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   # write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("data/test_tK/2d_tK_armchair_Lx$(Nx_unit)_Ly$(Ny_unit).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    # write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    # write(file, "Plaquette", W_operator_eigenvalues)
+    # write(file, "Loop", yloop_eigenvalues)
+    # write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
