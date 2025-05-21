@@ -148,10 +148,10 @@ let
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
     for site in lattice_sites
-      os .+= -1.0 * h, "Sx", site
-      os .+= -0.5 * h, "iS-", site
-      os .+= 0.5 * h, "iS+", site
-      os .+= -1.0 * h, "Sz", site
+      os .+= -h, "Sx", site
+      os .+= -0.5h, "iS-", site
+      os .+=  0.5h, "iS+", site
+      os .+= -h, "Sz", site
     end
   end
   
@@ -163,66 +163,71 @@ let
     @show w.s1, w.s2, w.s3
     x_coordinate = div(w.s2 - 1, Ny) + 1
     y_coordinate = mod(w.s2 - 1, Ny) + 1
+
     if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
-      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
-        # os .+= κ, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
-        os .+= 0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+      same_parity = (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
+
+      if same_parity
+        # Three-spin interaction: Sy(w.s1) * Sz(w.s2) * Sx(w.s3)
+        os .+=  0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
-        @show "Sy", w.s1, "Sz", w.s2, "Sx", w.s3 
-      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
-        # os .+= κ, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-        os .+= 0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+      else
+        # Three-spin interaction: Sx(w.s1) * Sz(w.s2) * Sy(w.s3)
+        os .+=  0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
         os .+= -0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
-        @show "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
       end
       horizontal_wedge += 1
     end
 
     if abs(w.s1 - w.s2) == 3
       if w.s1 < w.s2
-        # os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+        # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
         os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
         os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-        @show  "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
       else
-        # os .+= κ, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
-        os .+= 0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+        # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
+        os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
         os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-        @show "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
       end
       vertical_wedge += 1
     end
-
-
+    
     if abs(w.s2 - w.s1) == 1
-      if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
+      same_parity = (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
+      
+      if same_parity
         if w.s2 > w.s3
-          # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-          os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
+          # Sy(w.s3) * Sx(w.s2) * Sz(w.s1)
+          os .+=  0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
-          @show "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+          @info "Added three-spin term (same_parity, w.s2 > w.s3)" term = ("Sy", w.s3, "Sx", w.s2, "Sz", w.s1)
         else
-          # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-          os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
+          # Sx(w.s3) * Sy(w.s2) * Sz(w.s1)
+          os .+=  0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
-          @show "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+          @info "Added three-spin term (same_parity, w.s2 < w.s3)" term = ("Sx", w.s3, "Sy", w.s2, "Sz", w.s1)
         end
-      elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
+      else
         if w.s2 > w.s3
-          # os .+= κ, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-          os .+= 0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
+          # Sx(w.s3) * Sy(w.s2) * Sz(w.s1)
+          os .+=  0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
-          @show "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
+          @info "Added three-spin term (mixed_parity, w.s2 > w.s3)" term = ("Sx", w.s3, "Sy", w.s2, "Sz", w.s1)
         else
-          # os .+= κ, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-          os .+= 0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
+          # Sy(w.s3) * Sx(w.s2) * Sz(w.s1)
+          os .+=  0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
           os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
-          @show "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
+          @info "Added three-spin term (mixed_parity, w.s2 < w.s3)" term = ("Sy", w.s3, "Sx", w.s2, "Sz", w.s1)
         end
       end
       vertical_wedge += 1
     end
   end
+  
   @show horizontal_wedge, vertical_wedge
 
   
@@ -274,14 +279,14 @@ let
   #*****************************************************************************************************
   
 
-  # Construct a custom observer and stop the DMRG calculation early if needed 
-  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  custom_observer = CustomObserver()
-  @show custom_observer.etolerance
-  @show custom_observer.minsweeps
-  @timeit time_machine "dmrg simulation" begin
-    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
-  end
+  # # Construct a custom observer and stop the DMRG calculation early if needed 
+  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  # custom_observer = CustomObserver()
+  # @show custom_observer.etolerance
+  # @show custom_observer.minsweeps
+  # @timeit time_machine "dmrg simulation" begin
+  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  # end
 
   
   # # Measure local observables (one-point functions) after finish the DMRG simulation
