@@ -554,10 +554,10 @@ function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
 			else
 				wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
 				if y == 1
-					wedge[b += 1] = WedgeBond(n - 1, n, n - Ny)
+					wedge[b += 1] = WedgeBond(n - Ny, n, n - 1)
 					wedge[b += 1] = WedgeBond(n - 1, n, n + Ny)
 				else
-					wedge[b += 1] = WedgeBond(n + 2, n, n - Ny)
+					wedge[b += 1] = WedgeBond(n - Ny, n, n + 2)
 					wedge[b += 1] = WedgeBond(n + 2, n, n + Ny)
 				end
 			end
@@ -572,10 +572,10 @@ function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
 			else
 				wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
 				if y == Ny
-					wedge[b += 1] = WedgeBond(n + 1, n, n - Ny)
+					wedge[b += 1] = WedgeBond(n - Ny, n, n + 1)
 					wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
 				else
-					wedge[b += 1] = WedgeBond(n - Ny + 1, n, n - Ny)
+					wedge[b += 1] = WedgeBond(n - Ny, n, n - Ny + 1)
 					wedge[b += 1] = WedgeBond(n - Ny + 1, n, n + Ny)
 				end
 			end
