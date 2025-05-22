@@ -250,14 +250,14 @@ let
   #*****************************************************************************************************
 
   
-  # # Construct a custom observer and stop the DMRG calculation early if needed 
-  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  # custom_observer = CustomObserver()
-  # @show custom_observer.etolerance
-  # @show custom_observer.minsweeps
-  # @timeit time_machine "dmrg simulation" begin
-  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
-  # end
+  # Construct a custom observer and stop the DMRG calculation early if needed 
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
+  @timeit time_machine "dmrg simulation" begin
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  end
 
   
   # # Measure local observables (one-point functions) after finish the DMRG simulation
@@ -400,27 +400,27 @@ let
   @show time_machine
   
 
-  # h5open("data/test_tK/2d_tK_armchair_Lx$(Nx_unit)_Ly$(Ny_unit).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   # write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   # write(file, "Plaquette", W_operator_eigenvalues)
-  #   # write(file, "Loop", yloop_eigenvalues)
-  #   # write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("data/test_tK/2d_tK_XC_Lx$(Nx_unit)_Ly$(Ny_unit).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    # write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    # write(file, "Plaquette", W_operator_eigenvalues)
+    # write(file, "Loop", yloop_eigenvalues)
+    # write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
