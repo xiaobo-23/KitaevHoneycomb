@@ -56,9 +56,10 @@ let
 
   # Bondary conditions and the mapping scheme
   x_periodic = false
+  y_periodic = true
   y_direction_twist = true
-
-
+  
+  
   # Construct a honeycomb lattice using XC geometry with a twist 
   # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
@@ -86,6 +87,7 @@ let
   
   #***************************************************************************************************************
   #***************************************************************************************************************  
+  
   # Construct the Kitaev interaction and the hopping terms
   os = OpSum()
   xbond = 0
@@ -100,58 +102,33 @@ let
 
     # Set up the anisotropic two-body Kitaev interaction
     tmp_x = div(b.s1 - 1, Ny) + 1
-    if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
+    if iseven(tmp_x)
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       zbond += 1
-      @debug "Added Sz-Sz bond" s1=b.s1 s2=b.s2
-      # @show b.s1, b.s2, "Sz"
+      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     else
-      if mod(tmp_x, 2) == 1 
-        if mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
-          os .+= -Jx, "Sx", b.s1, "Sx", b.s2
-          xbond += 1
-          @debug "Added Sx-Sx bond" s1=b.s1 s2=b.s2
-          # @show b.s1, b.s2, "Sx"
-        
-        elseif mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
-          # Set up the Sy * Sy interaction using two different ways
-          # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
-          os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
-          os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
-          os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
-          os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
-          
-          ybond += 1
-          @debug "Added Sy-Sy bond" s1=b.s1 s2=b.s2
-          # @show b.s1, b.s2, "Sy"
-        end
+      if abs(b.s1 - b.s2) == Ny
+        os .+= -Jx, "Sx", b.s1, "Sx", b.s2
+        xbond += 1
+        @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
       else
-        if mod(b.s1, 2) == 0 && mod(b.s2, 2) == 0
-          os .+= -Jx, "Sx", b.s1, "Sx", b.s2
-          xbond += 1
-          @debug "Added Sx-Sx bond" s1=b.s1 s2=b.s2
-          # @show b.s1, b.s2, "Sx"
-        elseif mod(b.s1, 2) == 1 && mod(b.s2, 2) == 1
-          # Set up the Sy * Sy interaction using two different ways
-          # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
-          os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
-          os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
-          os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
-          os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
-
-          ybond += 1
-          @debug "Added Sy-Sy bond" s1=b.s1 s2=b.s2
-          # @show b.s1, b.s2, "Sy"
-        end
+        os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
+        os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
+        os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
+        os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
+        ybond += 1 
+        @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
       end
     end
   end
-
+  
+  # Check the number of bonds in the Hamiltonian 
+  total_bonds = trunc(Int, 3/2 * N) - Ny + (y_periodic ? -1 : -trunc(Int, N / 2))
+  if xbond + ybond + zbond != total_bonds
+    error("The number of bonds in the Hamiltonian is not correct!")
+  end
+ 
    
-  @show xbond, ybond, zbond
-  @show lattice_sites
-  
-  
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
     for site in lattice_sites

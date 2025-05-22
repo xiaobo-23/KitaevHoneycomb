@@ -144,10 +144,7 @@ let
       end
     end
   end
-
-   
   @show xbond, ybond, zbond
-  @show lattice_sites
   
   
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
