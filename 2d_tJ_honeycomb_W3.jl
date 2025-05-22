@@ -124,6 +124,7 @@ let
   
   # Check the number of bonds in the Hamiltonian 
   total_bonds = trunc(Int, 3/2 * N) - Ny + (y_periodic ? -1 : -trunc(Int, N / 2))
+  @show xbond + ybond + zbond == total_bonds
   if xbond + ybond + zbond != total_bonds
     error("The number of bonds in the Hamiltonian is not correct!")
   end
@@ -140,30 +141,28 @@ let
   end
   
 
-  # Implement the three-spin interaction terms in the Hamiltonian
-  horizontal_wedge = 0
-  vertical_wedge = 0
+  # Set Up the three-spin interactions in the Hamiltonian
+  count_wedge = 0
   for w in wedge
     @show w.s1, w.s2, w.s3
     x_coordinate = div(w.s2 - 1, Ny) + 1
     y_coordinate = mod(w.s2 - 1, Ny) + 1
 
     if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
-      same_parity = (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
-
-      if same_parity
-        # Three-spin interaction: Sy(w.s1) * Sz(w.s2) * Sx(w.s3)
-        os .+=  0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
-        os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
-        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+      if isodd(x_coordinate)
+        # os .+= κ, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
+        os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3 
+        os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
       else
-        # Three-spin interaction: Sx(w.s1) * Sz(w.s2) * Sy(w.s3)
-        os .+=  0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
-        os .+= -0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        # os .+= κ, "Sx", w.s1, "Sy", w.s2, "Sz", w.s3
+        os .+=  0.5im * κ, "Sx", w.s1, "S-", w.s2, "Sz", w.s3
+        os .+= -0.5im * κ, "Sx", w.s1, "S+", w.s2, "Sz", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sy", w.s2, "Sz", w.s3)
       end
-      horizontal_wedge += 1
+      count_wedge += 1
     end
+
 
     if abs(w.s1 - w.s2) == 3
       if w.s1 < w.s2
