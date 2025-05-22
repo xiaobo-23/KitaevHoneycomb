@@ -456,15 +456,17 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	""" 
 	
 	yperiodic = yperiodic && (Ny > 2)
-	Nwedge = 3 * Nx * Ny - 4 * Ny  # Number of wedges
+	N = Nx * Ny									# Number of sites	
+	Nwedge = 3 * Nx * Ny - 4 * Ny  				# Number of wedges
 
 	wedge = Vector{WedgeBond}(undef, Nwedge)
 	# wedge = Wedge(undef, Nwedge)
 
 	b = 0
-	for n in 1 : Nwedge
+	for n in 1 : N
 		x = div(n - 1, Ny) + 1
 		y = mod(n - 1, Ny) + 1
+		@show n, x, y
 		
 		if x == 1
 			if mod(y, 2) == 1
@@ -531,17 +533,20 @@ function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
 		Use the XC geometry with a twist
 	"""
 	yperiodic = yperiodic && (Ny > 2)
-	Nwedge = 3 * Nx * Ny - 2 * 2 * Ny - 2	 			             # Number of wedges 
+	N = Nx * Ny									# Number of sites
+	Nwedge = 3 * Nx * Ny - 2 * 2 * Ny - 2		# Number of wedges
+	@show Nwedge
 
 	wedge = Vector{WedgeBond}(undef, Nwedge)
 	# wedge = Wedge(undef, Nwedge)
 
 	b = 0
-	for n in 1 : Nwedge
+	for n in 1 : N
 		x = div(n - 1, Ny) + 1
 		y = mod(n - 1, Ny) + 1
 
 		if isodd(x)
+			@show n, x, y
 			if x == 1
 				if y != 1
 					wedge[b += 1] = WedgeBond(n + Ny - 1, n, n + Ny)
@@ -559,6 +564,7 @@ function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
 		end
 
 		if iseven(x)
+			@show n, x, y
 			if x == Nx
 				if y != Ny  
 					wedge[b += 1] = WedgeBond(n - Ny, n, n - Ny + 1)

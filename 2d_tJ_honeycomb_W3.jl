@@ -29,17 +29,18 @@ OMP_NUM_THREADS = 8
 
 
 const Nx_unit = 4
-const Ny_unit = 4
+const Ny_unit = 3
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
 const N = Nx * Ny
 # Timing and profiling
 const time_machine = TimerOutput()
 
+
 let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
-  κ = -2.0                       # The three-spin interaction strength       
+  κ = -1.0                       # The three-spin interaction strength       
   t = 1.0                                      # The hopping amplitude 
   h = 0
   alpha = 1E-4
@@ -58,21 +59,22 @@ let
   y_direction_twist = true
 
 
-  # Construct a honeycomb lattice using armchair geometry
+  # Construct a honeycomb lattice using XC geometry with a twist 
   # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
     @show length(lattice)
   else
-    lattice = honeycomb_lattice_armchair(Nx, Ny; yperiodic=true)
+    # lattice = honeycomb_lattice_armchair(Nx, Ny; yperiodic=true)
+    lattice = honeycomb_lattice_rings_right_twist(Nx, Ny; yperiodic=true)
     @show length(lattice)
   end 
   number_of_bonds = length(lattice)
 
   
   # Construct the wedges in order to set up three-body spin interactions
-  wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
-  @show length(wedge), wedge 
+  wedge = honeycomb_twist_wedge(Nx, Ny; yperiodic=true)
+  # @show length(wedge), wedge 
 
   
   # Select the position(s) of the vacancies
@@ -325,95 +327,95 @@ let
   # end
 
 
-  # # # Compute the eigenvalues of plaquette operators
-  # # # normalize!(ψ)
-  # # @timeit time_machine "plaquette operators" begin
-  # #   W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
+  # # Compute the eigenvalues of plaquette operators
+  # # normalize!(ψ)
+  # @timeit time_machine "plaquette operators" begin
+  #   W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
     
-  # #   # Compute the eigenvalues of the plaquette operator
-  # #   for index in 1 : size(plaquette_indices, 1)
-  # #     @show plaquette_indices[index, :]
-  # #     os_w = OpSum()
-  # #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-  # #       plaquette_operator[2], plaquette_indices[index, 2], 
-  # #       plaquette_operator[3], plaquette_indices[index, 3], 
-  # #       plaquette_operator[4], plaquette_indices[index, 4], 
-  # #       plaquette_operator[5], plaquette_indices[index, 5], 
-  # #       plaquette_operator[6], plaquette_indices[index, 6]
-  # #     W = MPO(os_w, sites)
-  # #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-  # #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  #   # Compute the eigenvalues of the plaquette operator
+  #   for index in 1 : size(plaquette_indices, 1)
+  #     @show plaquette_indices[index, :]
+  #     os_w = OpSum()
+  #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
+  #       plaquette_operator[2], plaquette_indices[index, 2], 
+  #       plaquette_operator[3], plaquette_indices[index, 3], 
+  #       plaquette_operator[4], plaquette_indices[index, 4], 
+  #       plaquette_operator[5], plaquette_indices[index, 5], 
+  #       plaquette_operator[6], plaquette_indices[index, 6]
+  #     W = MPO(os_w, sites)
+  #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
+  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+  #   end
+  # end
+  # @show W_operator_eigenvalues
+  
+  # # # Compute the eigenvalues of the loop operators 
+  # # # The loop operators depend on the width of the cylinder  
+  # # @timeit time_machine "loop operators" begin
+  # #   yloop_eigenvalues = zeros(Float64, size(loop_indices)[1])
+    
+  # #   # Compute eigenvalues of the loop operators in the direction with PBC.
+  # #   for index in 1 : size(loop_indices)[1]
+  # #     ## Construct loop operators along the y direction with PBC
+  # #     os_wl = OpSum()
+  # #     os_wl += loop_operator[1], loop_indices[index, 1], 
+  # #       loop_operator[2], loop_indices[index, 2], 
+  # #       loop_operator[3], loop_indices[index, 3], 
+  # #       loop_operator[4], loop_indices[index, 4], 
+  # #       loop_operator[5], loop_indices[index, 5], 
+  # #       loop_operator[6], loop_indices[index, 6],
+  # #       loop_operator[7], loop_indices[index, 7],
+  # #       loop_operator[8], loop_indices[index, 8]
+
+  # #     Wl = MPO(os_wl, sites)
+  # #     yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
   # #   end
   # # end
-  # # @show W_operator_eigenvalues
-  
-  # # # # Compute the eigenvalues of the loop operators 
-  # # # # The loop operators depend on the width of the cylinder  
-  # # # @timeit time_machine "loop operators" begin
-  # # #   yloop_eigenvalues = zeros(Float64, size(loop_indices)[1])
-    
-  # # #   # Compute eigenvalues of the loop operators in the direction with PBC.
-  # # #   for index in 1 : size(loop_indices)[1]
-  # # #     ## Construct loop operators along the y direction with PBC
-  # # #     os_wl = OpSum()
-  # # #     os_wl += loop_operator[1], loop_indices[index, 1], 
-  # # #       loop_operator[2], loop_indices[index, 2], 
-  # # #       loop_operator[3], loop_indices[index, 3], 
-  # # #       loop_operator[4], loop_indices[index, 4], 
-  # # #       loop_operator[5], loop_indices[index, 5], 
-  # # #       loop_operator[6], loop_indices[index, 6],
-  # # #       loop_operator[7], loop_indices[index, 7],
-  # # #       loop_operator[8], loop_indices[index, 8]
-
-  # # #     Wl = MPO(os_wl, sites)
-  # # #     yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
-  # # #   end
-  # # # end
 
 
-  # # # # Compute the eigenvalues of the order parameters near vacancies
-  # # # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
-  # # # # need to genealize in the future to automatically generate the loop indices near vacancies
+  # # # Compute the eigenvalues of the order parameters near vacancies
+  # # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
+  # # # need to genealize in the future to automatically generate the loop indices near vacancies
 
-  # # # @timeit time_machine "twelve-point correlator(s)" begin
-  # # #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  # # #   order_indices = Matrix{Int64}(undef, 1, 12)
-  # # #   # Complete the loop indices near vacancies
-  # # #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
-  # # #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
-  # # #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
+  # # @timeit time_machine "twelve-point correlator(s)" begin
+  # #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
+  # #   order_indices = Matrix{Int64}(undef, 1, 12)
+  # #   # Complete the loop indices near vacancies
+  # #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
+  # #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
+  # #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
 
     
-  # # #   @show size(order_indices)[1]
-  # # #   for index in 1 : size(order_indices)[1]
-  # # #     os_parameter = OpSum()
-  # # #     os_parameter += order_loop[1], order_indices[index, 1], 
-  # # #       order_loop[2], order_indices[index, 2], 
-  # # #       order_loop[3], order_indices[index, 3], 
-  # # #       order_loop[4], order_indices[index, 4], 
-  # # #       order_loop[5], order_indices[index, 5], 
-  # # #       order_loop[6], order_indices[index, 6],
-  # # #       order_loop[7], order_indices[index, 7],
-  # # #       order_loop[8], order_indices[index, 8],
-  # # #       order_loop[9], order_indices[index, 9],
-  # # #       order_loop[10], order_indices[index, 10],
-  # # #       order_loop[11], order_indices[index, 11],
-  # # #       order_loop[12], order_indices[index, 12]
-  # # #     W_parameter = MPO(os_parameter, sites)
-  # # #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  # # #   end
-  # # # end
+  # #   @show size(order_indices)[1]
+  # #   for index in 1 : size(order_indices)[1]
+  # #     os_parameter = OpSum()
+  # #     os_parameter += order_loop[1], order_indices[index, 1], 
+  # #       order_loop[2], order_indices[index, 2], 
+  # #       order_loop[3], order_indices[index, 3], 
+  # #       order_loop[4], order_indices[index, 4], 
+  # #       order_loop[5], order_indices[index, 5], 
+  # #       order_loop[6], order_indices[index, 6],
+  # #       order_loop[7], order_indices[index, 7],
+  # #       order_loop[8], order_indices[index, 8],
+  # #       order_loop[9], order_indices[index, 9],
+  # #       order_loop[10], order_indices[index, 10],
+  # #       order_loop[11], order_indices[index, 11],
+  # #       order_loop[12], order_indices[index, 12]
+  # #     W_parameter = MPO(os_parameter, sites)
+  # #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
+  # #   end
+  # # end
 
   
-  # # # Print out useful information of physical quantities
-  # # println("")
-  # # println("Visualize the optimization history of the energy and bond dimensions:")
-  # # @show custom_observer.ehistory_full
-  # # @show custom_observer.ehistory
-  # # @show custom_observer.chi
-  # # # @show number_of_bonds, energy / number_of_bonds
-  # # # @show N, energy / N
-  # # println("")
+  # # Print out useful information of physical quantities
+  # println("")
+  # println("Visualize the optimization history of the energy and bond dimensions:")
+  # @show custom_observer.ehistory_full
+  # @show custom_observer.ehistory
+  # @show custom_observer.chi
+  # # @show number_of_bonds, energy / number_of_bonds
+  # # @show N, energy / N
+  # println("")
 
 
   # # Check the variance of the energy
@@ -428,27 +430,27 @@ let
   # println("")
   
 
+  # println("")
+  # println("Eigenvalues of the plaquette operator:")
+  # @show W_operator_eigenvalues
+  # println("")
+
+
+  # print("")
+  # println("Eigenvalues of the loop operator(s):")
+  # @show yloop_eigenvalues
+  # println("")
+
   # # println("")
-  # # println("Eigenvalues of the plaquette operator:")
-  # # @show W_operator_eigenvalues
+  # # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
+  # # @show order_parameter
   # # println("")
 
 
-  # # print("")
-  # # println("Eigenvalues of the loop operator(s):")
-  # # @show yloop_eigenvalues
-  # # println("")
-
-  # # # println("")
-  # # # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  # # # @show order_parameter
-  # # # println("")
-
-
-  # @show time_machine
+  @show time_machine
   
 
-  # h5open("data/test_tK/2d_tK_armchair_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
+  # h5open("data/test_tK/2d_tK_armchair_Lx$(Nx_unit)_Ly$(Ny_unit).h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
   #   write(file, "E0", energy)
