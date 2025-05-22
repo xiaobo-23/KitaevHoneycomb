@@ -163,69 +163,43 @@ let
       count_wedge += 1
     end
 
-
-    if abs(w.s1 - w.s2) == 3
-      if w.s1 < w.s2
-        if w.s2 > w.s3
-          # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
-          os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-          @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
-        else
-          # Three-spin interaction: Sz(w.s1) * Sx(w.s2) * Sy(w.s3)
-          os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-          @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
-        end
+    if (abs(w.s1 - w.s2) == 1 || abs(w.s1 - w.s2) == 2) && abs(w.s2 - w.s3) == 3
+      if isodd(x_coordinate)
+        # os .+= κ, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+=  0.5im * κ, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+= -0.5im * κ, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+        count_wedge += 1
       else
-        if w.s2 > w.s3 
-          # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
-          os .+=  0.5im * κ, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          os .+= -0.5im * κ, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-          @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
-        else
-          # Three-spin interaction: Sz(w.s1) * Sy(w.s2) * Sx(w.s3)
-          os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-          @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
-        end
+        # os .+= κ, "Sy", w.s1, "Sx", w.s2, "Sz", w.s3
+        os .+=  0.5im * κ, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
+        os .+= -0.5im * κ, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
+        count_wedge += 1
       end
-      vertical_wedge += 1
     end
-    
-    if abs(w.s2 - w.s1) == 1
-      same_parity = (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
-      
-      if same_parity
-        if w.s2 > w.s3
-          # Sy(w.s3) * Sx(w.s2) * Sz(w.s1)
-          os .+=  0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
-          os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
-          @info "Added three-spin term (same_parity, w.s2 > w.s3)" term = ("Sy", w.s3, "Sx", w.s2, "Sz", w.s1)
-        else
-          # Sx(w.s3) * Sy(w.s2) * Sz(w.s1)
-          os .+=  0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
-          os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
-          @info "Added three-spin term (same_parity, w.s2 < w.s3)" term = ("Sx", w.s3, "Sy", w.s2, "Sz", w.s1)
-        end
+
+    if abs(w.s1 - w.s2) == 3 && (abs(w.s2 - w.s3) == 1 || abs(w.s2 - w.s3) == 2)
+      if iseven(x_coordinate)
+        # os .+= κ, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
+        os .+=  0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        os .+= -0.5im * κ, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        count_wedge += 1
       else
-        if w.s2 > w.s3
-          # Sx(w.s3) * Sy(w.s2) * Sz(w.s1)
-          os .+=  0.5im * κ, "Sx", w.s3, "S-", w.s2, "Sz", w.s1
-          os .+= -0.5im * κ, "Sx", w.s3, "S+", w.s2, "Sz", w.s1
-          @info "Added three-spin term (mixed_parity, w.s2 > w.s3)" term = ("Sx", w.s3, "Sy", w.s2, "Sz", w.s1)
-        else
-          # Sy(w.s3) * Sx(w.s2) * Sz(w.s1)
-          os .+=  0.5im * κ, "S-", w.s3, "Sx", w.s2, "Sz", w.s1
-          os .+= -0.5im * κ, "S+", w.s3, "Sx", w.s2, "Sz", w.s1
-          @info "Added three-spin term (mixed_parity, w.s2 < w.s3)" term = ("Sy", w.s3, "Sx", w.s2, "Sz", w.s1)
-        end
+        # os .+= κ, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
+        os .+=  0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        os .+= -0.5im * κ, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        count_wedge += 1
       end
-      vertical_wedge += 1
     end
   end
   
-  @show horizontal_wedge, vertical_wedge
+  # @show count_wedge, 3 * N - 4 * Ny - 2
+  if count_wedge != 3 * N - 4 * Ny - 2
+    error("The number of three-spin interactions is not correct!")
+  end
 
   
   # #***************************************************************************************************************
