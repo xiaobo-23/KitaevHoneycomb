@@ -40,7 +40,7 @@ const time_machine = TimerOutput()
 let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
-  κ = -1.0                       # The three-spin interaction strength       
+  κ = -6.0                       # The three-spin interaction strength       
   t = 1.0                                      # The hopping amplitude 
   h = 0
   alpha = 1E-4
@@ -204,17 +204,24 @@ let
   
   # #***************************************************************************************************************
   # #***************************************************************************************************************  
-  # Generate the indices for all loop operators along the cylinder
-  loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
-  loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
+  # Set up the loop operators and loop indices 
+  loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
+  # loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
   # @show loop_indices
 
   
   # Generate the plaquette indices for all the plaquettes in the cylinder
-  plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
-  plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
+  # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
+  plaquette_operators = [
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S-"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S-"]
+  ]
+  # plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
   # @show plaquette_indices
 
+  
   #*****************************************************************************************************
   #*****************************************************************************************************  
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
@@ -260,21 +267,21 @@ let
   end
 
   
-  # # Measure local observables (one-point functions) after finish the DMRG simulation
-  # @timeit time_machine "one-point functions" begin
-  #   Sx = expect(ψ, "Sx", sites = 1 : N)
-  #   Splus  = expect(ψ, "S+", sites = 1 : N)
-  #   Sminus = expect(ψ, "S-", sites = 1 : N)
-  #   Sy = 0.5im * (Splus - Sminus)
-  #   Sz = expect(ψ, "Sz", sites = 1 : N)
-  # end
+  # Measure local observables (one-point functions) after finish the DMRG simulation
+  @timeit time_machine "one-point functions" begin
+    Sx = expect(ψ, "Sx", sites = 1 : N)
+    Splus  = expect(ψ, "S+", sites = 1 : N)
+    Sminus = expect(ψ, "S-", sites = 1 : N)
+    Sy = 0.5im * (Splus - Sminus)
+    Sz = expect(ψ, "Sz", sites = 1 : N)
+  end
 
   
-  # @timeit time_machine "two-point functions" begin
-  #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-  #   # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  # end
+  @timeit time_machine "two-point functions" begin
+    xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+    zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
+    # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
+  end
 
 
   # # Compute the eigenvalues of plaquette operators
@@ -368,16 +375,16 @@ let
   # println("")
 
 
-  # # Check the variance of the energy
-  # @timeit time_machine "compaute the variance" begin
-  #   H2 = inner(H, ψ, H, ψ)
-  #   E₀ = inner(ψ', H, ψ)
-  #   variance = H2 - E₀^2
-  # end
-  # println("")
-  # @show E₀
-  # println("Variance of the energy is $variance")
-  # println("")
+  # Check the variance of the energy
+  @timeit time_machine "compaute the variance" begin
+    H2 = inner(H, ψ, H, ψ)
+    E₀ = inner(ψ', H, ψ)
+    variance = H2 - E₀^2
+  end
+  println("")
+  @show E₀
+  println("Variance of the energy is $variance")
+  println("")
   
 
   # println("")
@@ -400,7 +407,7 @@ let
   @show time_machine
   
 
-  h5open("data/test_tK/2d_tK_XC_Lx$(Nx_unit)_Ly$(Ny_unit).h5", "w") do file
+  h5open("data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
@@ -413,7 +420,7 @@ let
     write(file, "Cxx", xxcorr)
     write(file, "Sy0", Sy₀)
     write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
+    # # write(file, "Cyy", yycorr)
     write(file, "Sz0", Sz₀)
     write(file, "Sz",  Sz)
     write(file, "Czz", zzcorr)
