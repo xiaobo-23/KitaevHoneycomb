@@ -40,7 +40,7 @@ const time_machine = TimerOutput()
 let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
-  κ = -6.0                       # The three-spin interaction strength       
+  κ = -0.2                       # The three-spin interaction strength       
   t = 1.0                                      # The hopping amplitude 
   h = 0
   alpha = 1E-4
@@ -213,13 +213,13 @@ let
 
   # Generate the plaquette indices for all the plaquettes in the cylinder
   # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
-  plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"]) 
-  # plaquette_operator = [
-  #   ["Sz", "S+", "Sx", "Sx", "S+", "Sz"],
-  #   ["Sz", "S+", "Sx", "Sx", "S-", "Sz"],
-  #   ["Sz", "S-", "Sx", "Sx", "S-", "Sz"],
-  #   ["Sz", "S-", "Sx", "Sx", "S+", "Sz"]
-  # ]
+  # plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"]) 
+  plaquette_operator = [
+    ["Sz", "S+", "Sx", "Sx", "S+", "Sz"],
+    ["Sz", "S+", "Sx", "Sx", "S-", "Sz"],
+    ["Sz", "S-", "Sx", "Sx", "S-", "Sz"],
+    ["Sz", "S-", "Sx", "Sx", "S+", "Sz"]
+  ]
   plaquette_indices = PlaquetteList_RightTwist(Nx_unit, Ny_unit, "rings", false)
   @show plaquette_indices
 
@@ -323,7 +323,7 @@ let
       
       for idx2 in 1:4
         operator = plaquette_operator[idx2]
-        @show operator, indices
+        # @show operator, indices
         os_w = OpSum()
         os_w += operator[1], indices[1], 
           operator[2], indices[2], 
@@ -332,9 +332,10 @@ let
           operator[5], indices[5], 
           operator[6], indices[6]
         W = MPO(os_w, sites)
-        plaquette_eigenvalues[idx1] += -1.0^idx2 * real(inner(ψ', W, ψ))
+        @show (-1.0)^idx2 * real(inner(ψ', W, ψ)) * 2^6
+        plaquette_eigenvalues[idx1] += (-1.0)^idx2 * real(inner(ψ', W, ψ))
       end
-      plaquette_eigenvalues[idx1] *= 2^6
+      plaquette_eigenvalues[idx1] *= 2^6 / 4
       # @show inner(ψ', W, ψ) / inner(ψ', ψ)
     end
   end
