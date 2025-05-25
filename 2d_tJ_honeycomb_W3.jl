@@ -211,17 +211,17 @@ let
   @show loop_indices
 
 
-  
   # Generate the plaquette indices for all the plaquettes in the cylinder
   # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
-  plaquette_operators = [
-    ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
-    ["S+", "Sz", "Sx", "Sx", "Sz", "S-"],
-    ["S-", "Sz", "Sx", "Sx", "Sz", "S+"],
-    ["S-", "Sz", "Sx", "Sx", "Sz", "S-"]
-  ]
-  # plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  # @show plaquette_indices
+  plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"]) 
+  # plaquette_operator = [
+  #   ["Sz", "S+", "Sx", "Sx", "S+", "Sz"],
+  #   ["Sz", "S+", "Sx", "Sx", "S-", "Sz"],
+  #   ["Sz", "S-", "Sx", "Sx", "S-", "Sz"],
+  #   ["Sz", "S-", "Sx", "Sx", "S+", "Sz"]
+  # ]
+  plaquette_indices = PlaquetteList_RightTwist(Nx_unit, Ny_unit, "rings", false)
+  @show plaquette_indices
 
   
   #*****************************************************************************************************
@@ -230,10 +230,10 @@ let
   sites = siteinds("tJ", N; conserve_qns=false)
   H = MPO(os, sites)
 
-  # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
+  # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum 
   # numbers as `state`
   state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  ψ₀ = randomMPS(sites, state, 20)
+  ψ₀ = randomMPS(sites, state, 10)
   
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 10
@@ -286,29 +286,6 @@ let
   end
 
 
-  # # Compute the eigenvalues of plaquette operators
-  # # normalize!(ψ)
-  # @timeit time_machine "plaquette operators" begin
-  #   W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
-    
-  #   # Compute the eigenvalues of the plaquette operator
-  #   for index in 1 : size(plaquette_indices, 1)
-  #     @show plaquette_indices[index, :]
-  #     os_w = OpSum()
-  #     os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-  #       plaquette_operator[2], plaquette_indices[index, 2], 
-  #       plaquette_operator[3], plaquette_indices[index, 3], 
-  #       plaquette_operator[4], plaquette_indices[index, 4], 
-  #       plaquette_operator[5], plaquette_indices[index, 5], 
-  #       plaquette_operator[6], plaquette_indices[index, 6]
-  #     W = MPO(os_w, sites)
-  #     W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-  #   end
-  # end
-  # @show W_operator_eigenvalues
-  
-
   # Compute the eigenvalues of the loop operators
   # The number of terms in the loop operator depends on the width of the cylinder 
   @timeit time_machine "loop operators" begin
@@ -316,19 +293,52 @@ let
     yloop_eigenvalues = zeros(Float64, nloops)
     
     for idx in 1 : nloops
+      indices = loop_indices[idx, :]
       # Construct the loop operators as MPOs and compute the eigenvalues
       os_wl = OpSum()
-      os_wl += loop_operator[1], loop_indices[idx, 1], 
-        loop_operator[2], loop_indices[idx, 2], 
-        loop_operator[3], loop_indices[idx, 3], 
-        loop_operator[4], loop_indices[idx, 4], 
-        loop_operator[5], loop_indices[idx, 5], 
-        loop_operator[6], loop_indices[idx, 6]
+      os_wl += loop_operator[1], indices[1], 
+        loop_operator[2], indices[2], 
+        loop_operator[3], indices[3], 
+        loop_operator[4], indices[4], 
+        loop_operator[5], indices[5], 
+        loop_operator[6], indices[6]
       Wl = MPO(os_wl, sites)
 
+      # The normalize factor is due to the difference between Pauli operators and spin operators
       yloop_eigenvalues[idx] = real(inner(ψ', Wl, ψ))
+      yloop_eigenvalues[idx] *= 2^6 
     end
   end
+  @show yloop_eigenvalues
+
+  
+  # Compute the eigenvalues of plaquette operators
+  # Decompose the plaquette operators into four terms for tJ type of sites 
+  @timeit time_machine "plaquette operators" begin
+    nplaquettes = size(plaquette_indices, 1)
+    plaquette_eigenvalues = zeros(Float64, nplaquettes)
+    
+    for idx1 in 1:nplaquettes
+      indices  = plaquette_indices[idx1, :]
+      
+      for idx2 in 1:4
+        operator = plaquette_operator[idx2]
+        @show operator, indices
+        os_w = OpSum()
+        os_w += operator[1], indices[1], 
+          operator[2], indices[2], 
+          operator[3], indices[3], 
+          operator[4], indices[4], 
+          operator[5], indices[5], 
+          operator[6], indices[6]
+        W = MPO(os_w, sites)
+        plaquette_eigenvalues[idx1] += -1.0^idx2 * real(inner(ψ', W, ψ))
+      end
+      plaquette_eigenvalues[idx1] *= 2^6
+      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+    end
+  end
+  @show plaquette_eigenvalues
 
 
   # # # Compute the eigenvalues of the order parameters near vacancies
@@ -405,9 +415,7 @@ let
   # # println("")
 
 
-  @show time_machine
-  
-
+  # @show time_machine
   # h5open("data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
@@ -425,8 +433,8 @@ let
   #   write(file, "Sz0", Sz₀)
   #   write(file, "Sz",  Sz)
   #   write(file, "Czz", zzcorr)
-  #   # write(file, "Plaquette", W_operator_eigenvalues)
-  #   # write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "Plaquette", plaquette_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
   #   # write(file, "OrderParameter", order_parameter)
   # end
 

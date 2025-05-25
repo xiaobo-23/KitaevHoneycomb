@@ -139,7 +139,7 @@ function PlaquetteListReordering(input_Nx:: Int, input_Ny:: Int, ordering_scheme
 end
 
 
-function PlaquetteList_RightTiwst(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, PBC_in_x:: Bool)
+function PlaquetteList_RightTwist(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, PBC_in_x:: Bool)
     # '''
     #     Assume using periodic boundary condition in y direction 
     #     Implement the list of plaquettes for open boundary condition in x direction
