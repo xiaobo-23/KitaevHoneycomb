@@ -46,13 +46,6 @@ let
   alpha = 1E-4
   @show Jx, Jy, Jz, alpha, κ, t, h
 
-  
-  # Set up the perturbation strength for the string and plaquette operators
-  lambda_left  = 0.1
-  lambda_right = 1.0 * lambda_left
-  eta = abs(lambda_left)  # The strength of the plaquette perturbation
-  @show lambda_left, lambda_right, eta  # Use a positive sign here in order to lower the eneergy, given that the plaquette operator is negative 
-  
 
   # Bondary conditions and the mapping scheme
   x_periodic = false
@@ -81,10 +74,9 @@ let
   # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
   # sites_to_delete = Set{Int64}()
-  lattice_sites = Set{Int64}(1 : N)                  # The set of all sites in the lattice
+  lattice_sites = Set{Int64}(1 : N)               # The set of all sites in the lattice
   @show lattice_sites
 
-  
   #***************************************************************************************************************
   #***************************************************************************************************************  
   
@@ -232,9 +224,25 @@ let
 
   # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum 
   # numbers as `state`
-  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  state = []
+  hole_idx = 8
+  for (idx, n) in enumerate(1 : N)
+    if n == hole_idx
+      push!(state, "Emp")
+    else
+      if isodd(idx)
+        push!(state, "Up")
+      else
+        push!(state, "Dn")
+      end
+    end
+  end
+  @show state
   ψ₀ = randomMPS(sites, state, 10)
   
+  
+
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
