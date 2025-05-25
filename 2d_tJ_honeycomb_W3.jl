@@ -204,10 +204,12 @@ let
   
   # #***************************************************************************************************************
   # #***************************************************************************************************************  
+  
   # Set up the loop operators and loop indices 
   loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
-  # loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  # @show loop_indices
+  loop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y")  
+  @show loop_indices
+
 
   
   # Generate the plaquette indices for all the plaquettes in the cylinder
@@ -306,28 +308,27 @@ let
   # end
   # @show W_operator_eigenvalues
   
-  # # # Compute the eigenvalues of the loop operators 
-  # # # The loop operators depend on the width of the cylinder  
-  # # @timeit time_machine "loop operators" begin
-  # #   yloop_eigenvalues = zeros(Float64, size(loop_indices)[1])
-    
-  # #   # Compute eigenvalues of the loop operators in the direction with PBC.
-  # #   for index in 1 : size(loop_indices)[1]
-  # #     ## Construct loop operators along the y direction with PBC
-  # #     os_wl = OpSum()
-  # #     os_wl += loop_operator[1], loop_indices[index, 1], 
-  # #       loop_operator[2], loop_indices[index, 2], 
-  # #       loop_operator[3], loop_indices[index, 3], 
-  # #       loop_operator[4], loop_indices[index, 4], 
-  # #       loop_operator[5], loop_indices[index, 5], 
-  # #       loop_operator[6], loop_indices[index, 6],
-  # #       loop_operator[7], loop_indices[index, 7],
-  # #       loop_operator[8], loop_indices[index, 8]
 
-  # #     Wl = MPO(os_wl, sites)
-  # #     yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
-  # #   end
-  # # end
+  # Compute the eigenvalues of the loop operators
+  # The number of terms in the loop operator depends on the width of the cylinder 
+  @timeit time_machine "loop operators" begin
+    nloops = size(loop_indices, 1)
+    yloop_eigenvalues = zeros(Float64, nloops)
+    
+    for idx in 1 : nloops
+      # Construct the loop operators as MPOs and compute the eigenvalues
+      os_wl = OpSum()
+      os_wl += loop_operator[1], loop_indices[idx, 1], 
+        loop_operator[2], loop_indices[idx, 2], 
+        loop_operator[3], loop_indices[idx, 3], 
+        loop_operator[4], loop_indices[idx, 4], 
+        loop_operator[5], loop_indices[idx, 5], 
+        loop_operator[6], loop_indices[idx, 6]
+      Wl = MPO(os_wl, sites)
+
+      yloop_eigenvalues[idx] = real(inner(ψ', Wl, ψ))
+    end
+  end
 
 
   # # # Compute the eigenvalues of the order parameters near vacancies
@@ -407,27 +408,27 @@ let
   @show time_machine
   
 
-  h5open("data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    # write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    # write(file, "Plaquette", W_operator_eigenvalues)
-    # write(file, "Loop", yloop_eigenvalues)
-    # write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   # write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   # write(file, "Plaquette", W_operator_eigenvalues)
+  #   # write(file, "Loop", yloop_eigenvalues)
+  #   # write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end
