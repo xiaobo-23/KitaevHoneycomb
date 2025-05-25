@@ -1,4 +1,5 @@
-# Kitaev.jl
+# ![KitaevHoneycmb.jl](Presentation_Fig1c.png)
+<!-- # Kitaev.jl -->
 
 Kitaev.jl is a high-performance framework for tensor network simulations of the Kitaev honeycomb model and its variants. Built on the powerful [ITensors.jl](https://docs.itensor.org/ITensors/stable/) library, this package provides robust tools for exploring a wide range of physical phenomena. Key features include:
 
@@ -8,7 +9,7 @@ Kitaev.jl is a high-performance framework for tensor network simulations of the 
 
 This project is actively evolving, with additional features and enhancements under development.
 
-![Honeycomb Lattice](Presentation_Fig1c.png)
+<!-- ![Honeycomb Lattice](Presentation_Fig1c.png) -->
 
 ## Getting Started
 

@@ -47,11 +47,14 @@ let
   @show Jx, Jy, Jz, alpha, κ, t, h
 
 
-  # Bondary conditions and the mapping scheme
+  #***************************************************************************************************************
+  # Set up the honeycomb lattice with proper boundary conditions
+  # Return the two types of objects: bonds (for two-body interactions) and wedges (for three-body interactions)
+  #***************************************************************************************************************
+  
   x_periodic = false
   y_periodic = true
   y_direction_twist = true
-  
   
   # Construct a honeycomb lattice using XC geometry with a twist 
   # TO-DO: Implement the armchair geometery with periodic boundary condition
@@ -64,22 +67,23 @@ let
     @show length(lattice)
   end 
   number_of_bonds = length(lattice)
-
   
   # Construct the wedges in order to set up three-body spin interactions
   wedge = honeycomb_twist_wedge(Nx, Ny; yperiodic=true)
   # @show length(wedge), wedge 
-
   
   # Select the position(s) of the vacancies
   # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
   # sites_to_delete = Set{Int64}()
   lattice_sites = Set{Int64}(1 : N)               # The set of all sites in the lattice
   @show lattice_sites
-
   #***************************************************************************************************************
   #***************************************************************************************************************  
   
+  #***************************************************************************************************************
+  # Construct the Hamiltonian as MPO
+  #***************************************************************************************************************
+
   # Construct the Kitaev interaction and the hopping terms
   os = OpSum()
   xbond = 0
@@ -120,7 +124,6 @@ let
   if xbond + ybond + zbond != total_bonds
     error("The number of bonds in the Hamiltonian is not correct!")
   end
- 
    
   # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
   if h > 1e-8
@@ -132,7 +135,6 @@ let
     end
   end
   
-
   # Set Up the three-spin interactions in the Hamiltonian
   count_wedge = 0
   for w in wedge
@@ -192,8 +194,6 @@ let
   if count_wedge != 3 * N - 4 * Ny - 2
     error("The number of three-spin interactions is not correct!")
   end
-
-  
   # #***************************************************************************************************************
   # #***************************************************************************************************************  
   
@@ -241,8 +241,6 @@ let
   @show state
   ψ₀ = randomMPS(sites, state, 10)
   
-  
-
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 10
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
@@ -251,9 +249,10 @@ let
   
   # # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # # noise = [1E-6, 1E-7, 1E-8, 0.0]
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************
+  #*****************************************************************************************************
+  #*****************************************************************************************************
 
+  
   #*****************************************************************************************************
   #*****************************************************************************************************
   # Measure one-point functions of the initial state
@@ -266,7 +265,6 @@ let
   #*****************************************************************************************************
   #*****************************************************************************************************
 
-  
   # Construct a custom observer and stop the DMRG calculation early if needed 
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
