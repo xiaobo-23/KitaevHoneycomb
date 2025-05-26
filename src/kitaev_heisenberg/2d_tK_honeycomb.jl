@@ -373,27 +373,139 @@ let
   # Define the central sites, excluding a margin of 2*Ny sites from both boundaries
   centers = collect((2 * Ny + 2):(N - 2 * Ny - 1))
   @info "Central sites selected for measurement" centers=centers
+  
+  order_loops = []
+  for center in centers
+    tmp_x = div(center - 1, Ny) + 1
+    tmp_y = mod(center - 1, Ny) + 1
+    tmp_loop = []
+
+    if isodd(tmp_x)
+      if tmp_y == 1
+        append!(tmp_loop, [
+          center + 1,
+          center + Ny,
+          center + 2 * Ny,
+          center + 2 * Ny - 1,
+          center + Ny - 1,
+          center - 1,
+          center - Ny - 1,
+          center - 2 * Ny - 1,
+          center - 2 * Ny,
+          center - Ny,
+          center - 2 * Ny + 1,
+          center - Ny + 1
+        ])
+      elseif tmp_y == Ny
+        append!(tmp_loop, [
+          center + Ny + 1,
+          center + Ny,
+          center + 2 * Ny,
+          center + 2 * Ny + 2,
+          center + 2 * Ny - 1,
+          center + Ny - 1,
+          center - 1,
+          center - Ny - 1,
+          center - 2 * Ny,
+          center - Ny,
+          center - Ny + 1,
+          center + 1
+        ])
+      else
+        # Construct the loop for odd x and tmp_y ≠ 1 and tmp_y ≠ Ny
+        append!(tmp_loop, [
+          center + 1,
+          center + Ny,
+          center + 2 * Ny,
+          center + 2 * Ny + 2,
+          center + 2 * Ny - 1,
+          center + Ny - 1,
+          center - 1,
+          center - Ny - 1,
+          center - 2 * Ny,
+          center - Ny,
+          center - 2 * Ny + 1,
+          center - Ny + 1
+        ])
+      end
+    else
+      if tmp_y == 1
+        # Construct the loop for even x and tmp_y == 1
+        append!(tmp_loop, [
+          center - Ny,
+          center - 2 * Ny,
+          center - 3 * Ny + 1,
+          center - 2 * Ny + 1,
+          center - Ny + 1,
+          center + 1,
+          center + Ny + 1,
+          center + 2 * Ny,
+          center + Ny,
+          center + Ny - 1,
+          center - 1,
+          center - Ny - 1
+        ])
+      elseif tmp_y == Ny
+        # Construct the loop for even x and tmp_y == Ny
+        append!(tmp_loop, [
+          center - 1,
+          center - Ny,
+          center - 2 * Ny,
+          center - 2 * Ny + 1,
+          center - Ny + 1,
+          center + 1,
+          center + Ny + 1,
+          center + 2 * Ny + 1,
+          center + 2 * Ny,
+          center + Ny,
+          center + 2 * Ny - 1,
+          center + Ny - 1
+        ]) 
+      else
+        # Construct the loop for even x and tmp_y != 1 and tmp_y != Ny
+        append!(tmp_loop, [
+          center - 1,
+          center - Ny,
+          center - 2 * Ny,
+          center - 3 * Ny + 1,
+          center - 2 * Ny + 1,
+          center - Ny + 1,
+          center + 1,
+          center + Ny + 1,
+          center + 2 * Ny,
+          center + Ny,
+          center + 2 * Ny - 1,
+          center + Ny - 1
+        ])
+      end
+    end
+    push!(order_loops, tmp_loop)
+  end
+  
+  for idx in 1 : length(order_loops)
+    @show order_loops[idx]
+  end
 
   function configure_signs(input_string)
     return [(-1.0)^count(==( "S-" ), row) for row in input_string]
   end
 
-  order_string = [["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-  ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-  ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
-  ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"]]
+  order_string = [["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
+  ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"]]
   
   # Reference sign structure for the order parameter 
   # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
