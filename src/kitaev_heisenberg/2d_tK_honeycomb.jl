@@ -512,35 +512,53 @@ let
   sign = configure_signs(order_string)
   @show sign
 
-  # @timeit time_machine "order parameter(s)" begin
-  #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  #   order_indices = Matrix{Int64}(undef, 1, 12)
-  #   # Complete the loop indices near vacancies
-  #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
-  #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
-  #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
+  @timeit time_machine "order parameter(s)" begin
+    order_parameter = Vector{Float64}(undef, size(order_loops)[1])
 
-    
-  #   @show size(order_indices)[1]
-  #   for index in 1 : size(order_indices)[1]
-  #     os_parameter = OpSum()
-  #     os_parameter += order_loop[1], order_indices[index, 1], 
-  #       order_loop[2], order_indices[index, 2], 
-  #       order_loop[3], order_indices[index, 3], 
-  #       order_loop[4], order_indices[index, 4], 
-  #       order_loop[5], order_indices[index, 5], 
-  #       order_loop[6], order_indices[index, 6],
-  #       order_loop[7], order_indices[index, 7],
-  #       order_loop[8], order_indices[index, 8],
-  #       order_loop[9], order_indices[index, 9],
-  #       order_loop[10], order_indices[index, 10],
-  #       order_loop[11], order_indices[index, 11],
-  #       order_loop[12], order_indices[index, 12]
-  #     W_parameter = MPO(os_parameter, sites)
-  #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  #   end
-  # end
+    for idx1 in 1 : size(order_loops)[1]
+      loop = order_loops[idx1]
+      for idx2 in 1 : size(order_string)[1]
+        operator = order_string[idx2]
+        os_order = OpSum()
+        os_order +=  "Ntot", centers[idx1], 
+          operator[1], loop[1], 
+          operator[2], loop[2], 
+          operator[3], loop[3], 
+          operator[4], loop[4], 
+          operator[5], loop[5], 
+          operator[6], loop[6],
+          operator[7], loop[7],
+          operator[8], loop[8],
+          operator[9], loop[9],
+          operator[10], loop[10],
+          operator[11], loop[11],
+          operator[12], loop[12]
+        W_order = MPO(os_order, sites)
 
+        os_order_identity = OpSum()
+        os_order_identity += operator[1], loop[1], 
+          operator[2], loop[2], 
+          operator[3], loop[3], 
+          operator[4], loop[4], 
+          operator[5], loop[5], 
+          operator[6], loop[6],
+          operator[7], loop[7],
+          operator[8], loop[8],
+          operator[9], loop[9],
+          operator[10], loop[10],
+          operator[11], loop[11],
+          operator[12], loop[12]
+        W_order_identity = MPO(os_order_identity, sites)
+
+        order_parameter[idx1] += (1/2)^4 * 2^12 * sign[idx2] * (real(inner(ψ', W_order_identity, ψ))) - real(inner(ψ', W_order, ψ))
+      end
+    end
+  end
+
+  for idx in 1 : length(order_parameter)
+    @show order_parameter[idx]
+  end
+  
   
   # # Print out useful information of physical quantities
   # println("")
