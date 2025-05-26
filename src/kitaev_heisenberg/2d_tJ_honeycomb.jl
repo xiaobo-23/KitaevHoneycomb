@@ -11,10 +11,10 @@ using LinearAlgebra
 using TimerOutputs
 
 
-include("src/kitaev_heisenberg/HoneycombLattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
-include("src/kitaev_heisenberg/CustomObserver.jl")
+include("HoneycombLattice.jl")
+include("Entanglement.jl")
+include("TopologicalLoops.jl")
+include("CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading

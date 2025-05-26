@@ -11,10 +11,10 @@ using LinearAlgebra
 using TimerOutputs
 
 
-include("src/kitaev_heisenberg/HoneycombLattice.jl")
-include("src/kitaev_heisenberg/Entanglement.jl")
-include("src/kitaev_heisenberg/TopologicalLoops.jl")
-include("src/kitaev_heisenberg/CustomObserver.jl")
+include("HoneycombLattice.jl")
+include("Entanglement.jl")
+include("TopologicalLoops.jl")
+include("CustomObserver.jl")
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -48,10 +48,13 @@ let
 
 
   #***************************************************************************************************************
+  #***************************************************************************************************************
   # Set up the honeycomb lattice with proper boundary conditions
   # Return the two types of objects: bonds (for two-body interactions) and wedges (for three-body interactions)
   #***************************************************************************************************************
+  #***************************************************************************************************************
   
+  # Set up the boundary conditions for the cylinder
   x_periodic = false
   y_periodic = true
   y_direction_twist = true
@@ -80,8 +83,11 @@ let
   #***************************************************************************************************************
   #***************************************************************************************************************  
   
+
+  #***************************************************************************************************************
   #***************************************************************************************************************
   # Construct the Hamiltonian as MPO
+  #***************************************************************************************************************
   #***************************************************************************************************************
 
   # Construct the Kitaev interaction and the hopping terms
@@ -194,8 +200,6 @@ let
   if count_wedge != 3 * N - 4 * Ny - 2
     error("The number of three-spin interactions is not correct!")
   end
-  # #***************************************************************************************************************
-  # #***************************************************************************************************************  
   
   # Set up the loop operators and loop indices 
   loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
@@ -214,31 +218,37 @@ let
   ]
   plaquette_indices = PlaquetteList_RightTwist(Nx_unit, Ny_unit, "rings", false)
   @show plaquette_indices
-
+  #***************************************************************************************************************
+  #***************************************************************************************************************  
+  
   
   #*****************************************************************************************************
   #*****************************************************************************************************  
+  # Set up the initial MPS and parameters for the DMRG simulation
+  #*****************************************************************************************************
+  #*****************************************************************************************************
+
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
   sites = siteinds("tJ", N; conserve_qns=false)
   H = MPO(os, sites)
 
   # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum 
   # numbers as `state`
-  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  state = []
-  hole_idx = 8
-  for (idx, n) in enumerate(1 : N)
-    if n == hole_idx
-      push!(state, "Emp")
-    else
-      if isodd(idx)
-        push!(state, "Up")
-      else
-        push!(state, "Dn")
-      end
-    end
-  end
-  @show state
+  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  # state = []
+  # hole_idx = 8
+  # for (idx, n) in enumerate(1 : N)
+  #   if n == hole_idx
+  #     push!(state, "Emp")
+  #   else
+  #     if isodd(idx)
+  #       push!(state, "Up")
+  #     else
+  #       push!(state, "Dn")
+  #     end
+  #   end
+  # end
+  # @show state
   ψ₀ = randomMPS(sites, state, 10)
   
   # Set up the parameters including bond dimensions and truncation error
@@ -265,7 +275,14 @@ let
   #*****************************************************************************************************
   #*****************************************************************************************************
 
-  # Construct a custom observer and stop the DMRG calculation early if needed 
+
+  #******************************************************************************************************
+  #******************************************************************************************************
+  # Run the DMRG simulation and obtain the ground state wavefunction
+  #******************************************************************************************************
+  #******************************************************************************************************
+
+  # Construct a custom observer and stop the DMRG calculation early if criteria are met
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
   @show custom_observer.etolerance
@@ -273,9 +290,15 @@ let
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
+  #*****************************************************************************************************
+  #*****************************************************************************************************
 
-  
-  # Measure local observables (one-point functions) after finish the DMRG simulation
+  #******************************************************************************************************
+  #******************************************************************************************************
+  # Take measurements of the wavefunction after the DMRG simulation
+  #******************************************************************************************************
+  #******************************************************************************************************
+  # Measure local observables (one-point functions)
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Splus  = expect(ψ, "S+", sites = 1 : N)
@@ -284,15 +307,14 @@ let
     Sz = expect(ψ, "Sz", sites = 1 : N)
   end
 
-  
+  # Measure spin correlation functions (two-point functions)  
   @timeit time_machine "two-point functions" begin
     xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
     zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
     # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
   end
 
-
-  # Compute the eigenvalues of the loop operators
+  # Measure the loop operators along the y direction of the cylinder
   # The number of terms in the loop operator depends on the width of the cylinder 
   @timeit time_machine "loop operators" begin
     nloops = size(loop_indices, 1)
@@ -315,11 +337,10 @@ let
       yloop_eigenvalues[idx] *= 2^6 
     end
   end
-  @show yloop_eigenvalues
+  # @show yloop_eigenvalues
 
-  
-  # Compute the eigenvalues of plaquette operators
-  # Decompose the plaquette operators into four terms for tJ type of sites 
+  # Measure the eigenvalues of plaquette operators
+  # Decompose the plaquette operators into four terms for tJ type of sites
   @timeit time_machine "plaquette operators" begin
     nplaquettes = size(plaquette_indices, 1)
     plaquette_eigenvalues = zeros(Float64, nplaquettes)
@@ -345,41 +366,68 @@ let
       # @show inner(ψ', W, ψ) / inner(ψ', ψ)
     end
   end
-  @show plaquette_eigenvalues
+  # @show plaquette_eigenvalues
 
 
-  # # # Compute the eigenvalues of the order parameters near vacancies
-  # # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
-  # # # need to genealize in the future to automatically generate the loop indices near vacancies
+  # Set up and measure the eigenvalues of the order parameter(s)
+  # Define the central sites, excluding a margin of 2*Ny sites from both boundaries
+  centers = collect((2 * Ny + 2):(N - 2 * Ny - 1))
+  @info "Central sites selected for measurement" centers=centers
 
-  # # @timeit time_machine "twelve-point correlator(s)" begin
-  # #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  # #   order_indices = Matrix{Int64}(undef, 1, 12)
-  # #   # Complete the loop indices near vacancies
-  # #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
-  # #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
-  # #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
+  function configure_signs(input_string)
+    return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+  end
+
+  order_string = [["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+  ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+  ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"], 
+  ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"]]
+  
+  # Reference sign structure for the order parameter 
+  # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
+  sign = configure_signs(order_string)
+  @show sign
+
+  # @timeit time_machine "order parameter(s)" begin
+  #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
+  #   order_indices = Matrix{Int64}(undef, 1, 12)
+  #   # Complete the loop indices near vacancies
+  #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
+  #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
+  #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
 
     
-  # #   @show size(order_indices)[1]
-  # #   for index in 1 : size(order_indices)[1]
-  # #     os_parameter = OpSum()
-  # #     os_parameter += order_loop[1], order_indices[index, 1], 
-  # #       order_loop[2], order_indices[index, 2], 
-  # #       order_loop[3], order_indices[index, 3], 
-  # #       order_loop[4], order_indices[index, 4], 
-  # #       order_loop[5], order_indices[index, 5], 
-  # #       order_loop[6], order_indices[index, 6],
-  # #       order_loop[7], order_indices[index, 7],
-  # #       order_loop[8], order_indices[index, 8],
-  # #       order_loop[9], order_indices[index, 9],
-  # #       order_loop[10], order_indices[index, 10],
-  # #       order_loop[11], order_indices[index, 11],
-  # #       order_loop[12], order_indices[index, 12]
-  # #     W_parameter = MPO(os_parameter, sites)
-  # #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  # #   end
-  # # end
+  #   @show size(order_indices)[1]
+  #   for index in 1 : size(order_indices)[1]
+  #     os_parameter = OpSum()
+  #     os_parameter += order_loop[1], order_indices[index, 1], 
+  #       order_loop[2], order_indices[index, 2], 
+  #       order_loop[3], order_indices[index, 3], 
+  #       order_loop[4], order_indices[index, 4], 
+  #       order_loop[5], order_indices[index, 5], 
+  #       order_loop[6], order_indices[index, 6],
+  #       order_loop[7], order_indices[index, 7],
+  #       order_loop[8], order_indices[index, 8],
+  #       order_loop[9], order_indices[index, 9],
+  #       order_loop[10], order_indices[index, 10],
+  #       order_loop[11], order_indices[index, 11],
+  #       order_loop[12], order_indices[index, 12]
+  #     W_parameter = MPO(os_parameter, sites)
+  #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
+  #   end
+  # end
 
   
   # # Print out useful information of physical quantities
@@ -392,7 +440,6 @@ let
   # # @show N, energy / N
   # println("")
 
-
   # Check the variance of the energy
   @timeit time_machine "compaute the variance" begin
     H2 = inner(H, ψ, H, ψ)
@@ -404,17 +451,15 @@ let
   println("Variance of the energy is $variance")
   println("")
   
+  println("")
+  println("Eigenvalues of the plaquette operator:")
+  @show plaquette_eigenvalues
+  println("")
 
-  # println("")
-  # println("Eigenvalues of the plaquette operator:")
-  # @show W_operator_eigenvalues
-  # println("")
-
-
-  # print("")
-  # println("Eigenvalues of the loop operator(s):")
-  # @show yloop_eigenvalues
-  # println("")
+  print("")
+  println("Eigenvalues of the loop operator(s):")
+  @show yloop_eigenvalues
+  println("")
 
   # # println("")
   # # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
@@ -423,7 +468,9 @@ let
 
 
   # @show time_machine
-  # h5open("data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
+  
+  
+  # h5open("../../data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
   #   write(file, "E0", energy)
