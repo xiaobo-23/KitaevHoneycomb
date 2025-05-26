@@ -1,12 +1,13 @@
 <!-- # ![KitaevHoneycmb.jl](Presentation_Fig1c.png) -->
 # Kitaev.jl
-Kitaev.jl is a high-performance framework for tensor network simulations of the Kitaev honeycomb model and its variants. Built on the powerful [ITensors.jl](https://docs.itensor.org/ITensors/stable/) library, this package provides robust tools for exploring a wide range of physical phenomena. Key features include:
+Kitaev.jl is a high-performance tensor network framework for simulating the Kitaev honeycomb model and its generalizations. Built on top of [ITensors.jl](https://docs.itensor.org/ITensors/stable/), this package enables scalable and accurate studies of strongly correlated quantum spin systems, with a focus on topological order and non-Abelian anyons.
 
-- Mapping narrow cylinders to matrix product states (MPS)
-- Support for anisotropic Kitaev interactions, Heisenberg interactions, \(\gamma\) terms, and nonmagnetic spin vacancies
-- Tailored perturbations and pinning fields to aid in achieving convergence
+- Efficient mapping of honeycomb cylinders to one-dimensional chains, leveraging matrix product state (MPS) representations
+- Support for extended spin Hamiltonians, including anisotropic Kitaev couplings, Heisenberg interactions, off-diagonal 
+gamma terms, and spin vacancies
+- Implementation of tailored perturbations and non-local pinning fields to control topological flux sectors and accelerate convergence in symmetry-broken regimes
 
-This project is actively evolving, with additional features and enhancements under development.
+Kitaev.jl is actively evolving, with planned extensions including real-time and imaginary-time evolution, projected entangled pair state (PEPS) support—targeting applications such as the J₁–J₂ Heisenberg model on the triangular lattice and Abelian quantum spin liquids—and integration with quantum circuit emulation frameworks for benchmarking topological qubit architectures.
 
 ![Honeycomb Lattice](docs/Presentation_Fig1c.png)
 
