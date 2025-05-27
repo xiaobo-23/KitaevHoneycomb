@@ -393,7 +393,7 @@ let
           center - 2 * Ny - 1,
           center - 2 * Ny,
           center - Ny,
-          center - 2 * Ny + 1,
+          center - 2 * Ny + 1, 
           center - Ny + 1
         ])
       elseif tmp_y == Ny
@@ -432,6 +432,7 @@ let
       if tmp_y == 1
         # Construct the loop for even x and tmp_y == 1
         append!(tmp_loop, [
+          center - Ny - 1,
           center - Ny,
           center - 2 * Ny,
           center - 3 * Ny + 1,
@@ -442,8 +443,7 @@ let
           center + 2 * Ny,
           center + Ny,
           center + Ny - 1,
-          center - 1,
-          center - Ny - 1
+          center - 1
         ])
       elseif tmp_y == Ny
         # Construct the loop for even x and tmp_y == Ny
@@ -483,7 +483,7 @@ let
   end
   
   for idx in 1 : length(order_loops)
-    @show order_loops[idx]
+    @show centers[idx], order_loops[idx]
   end
 
   function configure_signs(input_string)
@@ -514,6 +514,7 @@ let
 
   @timeit time_machine "order parameter(s)" begin
     order_parameter = Vector{Float64}(undef, size(order_loops)[1])
+    order₀ = Vector{Float64}(undef, size(order_loops)[1])
 
     for idx1 in 1 : size(order_loops)[1]
       loop = order_loops[idx1]
@@ -550,7 +551,8 @@ let
           operator[12], loop[12]
         W_order_identity = MPO(os_order_identity, sites)
 
-        order_parameter[idx1] += (1/2)^4 * 2^12 * sign[idx2] * (real(inner(ψ', W_order_identity, ψ))) - real(inner(ψ', W_order, ψ))
+        order_parameter[idx1] += (1/2)^4 * 2^12 * sign[idx2] * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
+        order₀[idx1] += (1/2)^4 * 2^12 * sign[idx2] * real(inner(ψ', W_order, ψ))
       end
     end
   end
@@ -558,8 +560,12 @@ let
   for idx in 1 : length(order_parameter)
     @show order_parameter[idx]
   end
-  
-  
+
+  for idx in 1 : length(order₀)
+    @show order₀[idx]
+  end
+
+
   # # Print out useful information of physical quantities
   # println("")
   # println("Visualize the optimization history of the energy and bond dimensions:")
