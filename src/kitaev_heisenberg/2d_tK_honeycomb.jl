@@ -263,7 +263,7 @@ let
   #*****************************************************************************************************
   #*****************************************************************************************************
 
-  
+
   #*****************************************************************************************************
   #*****************************************************************************************************
   # Measure one-point functions of the initial state
@@ -521,8 +521,8 @@ let
   @show sign
 
   @timeit time_machine "order parameter(s)" begin
-    order_parameter = Vector{Float64}(undef, size(order_loops)[1])
-    order₀ = Vector{Float64}(undef, size(order_loops)[1])
+    order_parameter = zeros(Float64, length(order_loops))
+    order₀ = zeros(Float64, length(order_loops))
 
     for idx1 in 1 : size(order_loops)[1]
       loop = order_loops[idx1]
@@ -620,8 +620,8 @@ let
     write(file, "E0", energy)
     write(file, "E0variance", variance)
     write(file, "Ehist", custom_observer.ehistory)
-    # write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
+    write(file, "Bond", custom_observer.chi)
+    write(file, "Entropy", SvN)
     write(file, "Sx0", Sx₀)
     write(file, "Sx",  Sx)
     write(file, "Cxx", xxcorr)
