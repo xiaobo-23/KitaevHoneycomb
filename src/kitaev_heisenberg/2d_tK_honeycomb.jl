@@ -229,26 +229,27 @@ let
   #*****************************************************************************************************
 
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
-  sites = siteinds("tJ", N; conserve_qns=false)
+  # sites = siteinds("tJ", N; conserve_qns=false)
+  sites = siteinds("tJ", N; conserve_nf=true)
   H = MPO(os, sites)
 
   # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum 
   # numbers as `state`
-  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  # state = []
-  # hole_idx = 8
-  # for (idx, n) in enumerate(1 : N)
-  #   if n == hole_idx
-  #     push!(state, "Emp")
-  #   else
-  #     if isodd(idx)
-  #       push!(state, "Up")
-  #     else
-  #       push!(state, "Dn")
-  #     end
-  #   end
-  # end
-  # @show state
+  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  state = []
+  hole_idx = 11
+  for (idx, n) in enumerate(1 : N)
+    if n == hole_idx
+      push!(state, "Emp")
+    else
+      if isodd(idx)
+        push!(state, "Up")
+      else
+        push!(state, "Dn")
+      end
+    end
+  end
+  @show state
   ψ₀ = randomMPS(sites, state, 10)
   
   # Set up the parameters including bond dimensions and truncation error
@@ -270,8 +271,11 @@ let
   Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
   Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
   Sy₀ = 0.5im * (Splus₀ - Sminus₀)
-  @show Sy₀ 
+  # @show Sy₀ 
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
+  @show sum(n₀)
+  @show n₀
   #*****************************************************************************************************
   #*****************************************************************************************************
 
@@ -305,7 +309,11 @@ let
     Sminus = expect(ψ, "S-", sites = 1 : N)
     Sy = 0.5im * (Splus - Sminus)
     Sz = expect(ψ, "Sz", sites = 1 : N)
+    n = expect(ψ, "Ntot", sites = 1 : N)
   end
+
+  @show sum(n)
+  @show n
 
   # Measure spin correlation functions (two-point functions)  
   @timeit time_machine "two-point functions" begin
@@ -606,27 +614,29 @@ let
   # @show time_machine
   
   
-  # h5open("../../data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   # write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "Plaquette", plaquette_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   # write(file, "OrderParameter", order_parameter)
-  # end
+  h5open("../../data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    # write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "N0", n₀)
+    write(file, "N", n)
+    write(file, "Plaquette", plaquette_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   return
 end
