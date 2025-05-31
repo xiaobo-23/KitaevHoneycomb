@@ -39,9 +39,9 @@ const time_machine = TimerOutput()
 
 let
   # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = -1.0, -1.0, -1.0               # The Kitaev interaction 
-  κ = -0.2                       # The three-spin interaction strength       
-  t = 1.0                                      # The hopping amplitude 
+  Jx, Jy, Jz = 1.0, 1.0, 1.0                      # The Kitaev interaction 
+  κ = -0.2                                        # The three-spin interaction strength       
+  t = 1.0                                         # The hopping amplitude 
   h = 0
   alpha = 1E-4
   @show Jx, Jy, Jz, alpha, κ, t, h
@@ -96,11 +96,11 @@ let
   ybond = 0
   zbond = 0
   for b in lattice
-    # # Set up the hopping terms for spin-up and spin-down electrons
-    # os .+= -t, "Cdagup", b.s1, "Cup", b.s2
-    # os .+= -t, "Cdagup", b.s2, "Cup", b.s1
-    # os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
-    # os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
+    # Set up the hopping terms for spin-up and spin-down electrons
+    os .+= -t, "Cdagup", b.s1, "Cup", b.s2
+    os .+= -t, "Cdagup", b.s2, "Cup", b.s1
+    os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
+    os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
 
     # Set up the anisotropic two-body Kitaev interaction
     tmp_x = div(b.s1 - 1, Ny) + 1
@@ -253,7 +253,7 @@ let
   ψ₀ = randomMPS(sites, state, 10)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 10
+  nsweeps = 20
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
@@ -274,8 +274,15 @@ let
   # @show Sy₀ 
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
+  println("")
   @show sum(n₀)
   @show n₀
+  println("")
+
+  # Check if the system is properly doped before running the DMRG simulation
+  if abs(N - sum(n₀) - 1) > 1E-6
+    error("The system is not properly doped!")
+  end
   #*****************************************************************************************************
   #*****************************************************************************************************
 
@@ -312,8 +319,16 @@ let
     n = expect(ψ, "Ntot", sites = 1 : N)
   end
 
+  # Check if the system is properly doped after the DMRG simulation
+  println("")
   @show sum(n)
   @show n
+  println("")
+
+  if abs(N - sum(n) - 1) > 1E-6
+    error("The system is not properly doped!")
+  end
+  
 
   # Measure spin correlation functions (two-point functions)  
   @timeit time_machine "two-point functions" begin
@@ -367,7 +382,7 @@ let
           operator[5], indices[5], 
           operator[6], indices[6]
         W = MPO(os_w, sites)
-        @show (-1.0)^idx2 * real(inner(ψ', W, ψ)) * 2^6
+        # @show (-1.0)^idx2 * real(inner(ψ', W, ψ)) * 2^6
         plaquette_eigenvalues[idx1] += (-1.0)^idx2 * real(inner(ψ', W, ψ))
       end
       plaquette_eigenvalues[idx1] *= 2^6 / 4
@@ -614,14 +629,14 @@ let
   # @show time_machine
   
   
-  h5open("../../data/test_tK/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ).h5", "w") do file
+  h5open("../../data/test_tK/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ)_doped_hopping.h5", "w") do file
     write(file, "psi", ψ)
     write(file, "NormalizedE0", energy / number_of_bonds)
     write(file, "E0", energy)
     write(file, "E0variance", variance)
     write(file, "Ehist", custom_observer.ehistory)
     write(file, "Bond", custom_observer.chi)
-    write(file, "Entropy", SvN)
+    # write(file, "Entropy", SvN)
     write(file, "Sx0", Sx₀)
     write(file, "Sx",  Sx)
     write(file, "Cxx", xxcorr)
