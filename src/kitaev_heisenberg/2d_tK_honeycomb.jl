@@ -28,7 +28,7 @@ OMP_NUM_THREADS = 8
 @show BLAS.get_num_threads()
 
 
-const Nx_unit = 4
+const Nx_unit = 8
 const Ny_unit = 3
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
@@ -97,6 +97,9 @@ let
   zbond = 0
   for b in lattice
     # Set up the hopping terms for spin-up and spin-down electrons
+    println("*****************************************************************************************")
+    println("Setting up the electron hopping terms")
+    println("*****************************************************************************************")
     os .+= -t, "Cdagup", b.s1, "Cup", b.s2
     os .+= -t, "Cdagup", b.s2, "Cup", b.s1
     os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
@@ -328,7 +331,7 @@ let
   if abs(N - sum(n) - 1) > 1E-6
     error("The system is not properly doped!")
   end
-  
+
 
   # Measure spin correlation functions (two-point functions)  
   @timeit time_machine "two-point functions" begin
