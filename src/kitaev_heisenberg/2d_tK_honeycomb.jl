@@ -41,10 +41,14 @@ let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = 1.0, 1.0, 1.0                      # The Kitaev interaction 
   κ = -0.2                                        # The three-spin interaction strength       
-  t = 1.0                                         # The hopping amplitude 
+  t = 0.1                                         # The hopping amplitude 
+  P  = -10.0                                       # The chemical potential on the edges to avoid the hole being trapped in the edge
   h = 0
-  alpha = 1E-4
-  @show Jx, Jy, Jz, alpha, κ, t, h
+  @show Jx, Jy, Jz, κ, t, P, h
+  
+  # Reduce the Kitaev interaction connected to the vacancy
+  # alpha = 1E-4
+  # @show Jx, Jy, Jz, alpha, κ, t, h
 
 
   #***************************************************************************************************************
@@ -80,6 +84,10 @@ let
   # sites_to_delete = Set{Int64}()
   lattice_sites = Set{Int64}(1 : N)               # The set of all sites in the lattice
   @show lattice_sites
+
+  # Identify edge sites: first 7 and last 7 sites of the lattice
+  edge_sites = Set(1:7) ∪ Set(N-6:N)
+  @show length(edge_sites), edge_sites
   #***************************************************************************************************************
   #***************************************************************************************************************  
   
@@ -89,7 +97,6 @@ let
   # Construct the Hamiltonian as MPO
   #***************************************************************************************************************
   #***************************************************************************************************************
-
   # Construct the Kitaev interaction and the hopping terms
   os = OpSum()
   xbond = 0
@@ -133,16 +140,7 @@ let
   if xbond + ybond + zbond != total_bonds
     error("The number of bonds in the Hamiltonian is not correct!")
   end
-   
-  # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
-  if h > 1e-8
-    for site in lattice_sites
-      os .+= -h, "Sx", site
-      os .+= -0.5h, "iS-", site
-      os .+=  0.5h, "iS+", site
-      os .+= -h, "Sz", site
-    end
-  end
+
   
   # Set Up the three-spin interactions in the Hamiltonian
   count_wedge = 0
@@ -204,6 +202,27 @@ let
     error("The number of three-spin interactions is not correct!")
   end
   
+  
+  # Add edge chemical potentiial to avoid the hole being trapped in the edge
+  if abs(P) > 1e-8
+    for site in edge_sites
+      os .+= P, "Ntot", site
+      @info "Added edge chemical potential" site=site P=P
+    end
+  end
+  
+
+  # # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
+  # if h > 1e-8
+  #   for site in lattice_sites
+  #     os .+= -h, "Sx", site
+  #     os .+= -0.5h, "iS-", site
+  #     os .+=  0.5h, "iS+", site
+  #     os .+= -h, "Sz", site
+  #   end
+  # end
+
+
   # Set up the loop operators and loop indices 
   loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
   loop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y")  
@@ -256,13 +275,13 @@ let
   ψ₀ = randomMPS(sites, state, 10)
   
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 20
+  nsweeps = 1
   maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
-  # # Add noise terms to prevent DMRG from getting stuck in a local minimum
-  # # noise = [1E-6, 1E-7, 1E-8, 0.0]
+  # Add noise terms to prevent DMRG from getting stuck in a local minimum
+  # noise = [1E-6, 1E-7, 1E-8, 0.0]
   #*****************************************************************************************************
   #*****************************************************************************************************
 
@@ -632,29 +651,29 @@ let
   # @show time_machine
   
   
-  h5open("../../data/test_tK/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ)_doped_hopping.h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    write(file, "N0", n₀)
-    write(file, "N", n)
-    write(file, "Plaquette", plaquette_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    write(file, "OrderParameter", order_parameter)
-  end
+  # h5open("../../data/test_tK/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ)_doped_hopping.h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "N0", n₀)
+  #   write(file, "N", n)
+  #   write(file, "Plaquette", plaquette_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
 
   return
 end
