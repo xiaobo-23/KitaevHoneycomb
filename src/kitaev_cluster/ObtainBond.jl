@@ -1,6 +1,6 @@
 ## 12/15/2023
 # Compute the bond dimension of MPS
-using ITensors, ITensorMPS
+using ITensors
 # using ITensors: orthocenter, sites, copy, complex, real
 
 # Measure bond dimensions of an input MPS

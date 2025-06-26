@@ -1,0 +1,26 @@
+#!/bin/bash
+
+mkdir data
+
+for value in $(seq -0.025  -0.025  -0.4)
+do 
+    mkdir kappa$value
+    cp 2d_tK_honeycomb.jl  kappa$value/2d_tK_honeycomb.jl
+    
+    cd kappa$value
+        # Linux version
+        sed -i "s/kappa=0/kappa=$value/g" 2d_tK_honeycomb.jl
+
+        # # MacOS version
+        # sed -i "" "s/kappa=0/kappa=$value/g" 2d_tK_honeycomb.jl
+    cd ..  
+done
+
+# Generate the input file to use disBatch
+python3 Generate_disBatch_Input_File.py 
+    
+# Job submission on rusty
+if ! module list 2>&1 | grep -q disBatch; then
+    module load disBatch
+fi
+sbatch -n 16 -c 8 -t 5-0:0:0 -p ccq --constraint=rome disBatch tK

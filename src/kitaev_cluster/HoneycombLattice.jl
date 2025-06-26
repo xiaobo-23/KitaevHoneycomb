@@ -17,45 +17,45 @@
 #   - y2::Float64 -- y coordinate of site 2
 #   - type::String -- optional description of bond type
 # """
-# struct LatticeBond
-#   s1::Int
-#   s2::Int
-#   x1::Float64
-#   y1::Float64
-#   x2::Float64
-#   y2::Float64
-#   type::String
-# end
+struct LatticeBond
+  s1::Int
+  s2::Int
+  x1::Float64
+  y1::Float64
+  x2::Float64
+  y2::Float64
+  type::String
+end
 
-# """
-#     LatticeBond(s1::Int,s2::Int)
+"""
+    LatticeBond(s1::Int,s2::Int)
 
-#     LatticeBond(s1::Int,s2::Int,
-#                 x1::Real,y1::Real,
-#                 x2::Real,y2::Real,
-#                 type::String="")
+    LatticeBond(s1::Int,s2::Int,
+                x1::Real,y1::Real,
+                x2::Real,y2::Real,
+                type::String="")
 
-# Construct a LatticeBond struct by
-# specifying just the numbers of sites
-# 1 and 2, or additional details including
-# the (x,y) coordinates of the two sites and
-# an optional type string.
-# """
-# function LatticeBond(s1::Int, s2::Int)
-#   return LatticeBond(s1, s2, 0.0, 0.0, 0.0, 0.0, "")
-# end
+Construct a LatticeBond struct by
+specifying just the numbers of sites
+1 and 2, or additional details including
+the (x,y) coordinates of the two sites and
+an optional type string.
+"""
+function LatticeBond(s1::Int, s2::Int)
+  return LatticeBond(s1, s2, 0.0, 0.0, 0.0, 0.0, "")
+end
 
-# function LatticeBond(
-#   s1::Int, s2::Int, x1::Real, y1::Real, x2::Real, y2::Real, bondtype::String=""
-# )
-#   cf(x) = convert(Float64, x)
-#   return LatticeBond(s1, s2, cf(x1), cf(y1), cf(x2), cf(y2), bondtype)
-# end
+function LatticeBond(
+  s1::Int, s2::Int, x1::Real, y1::Real, x2::Real, y2::Real, bondtype::String=""
+)
+  cf(x) = convert(Float64, x)
+  return LatticeBond(s1, s2, cf(x1), cf(y1), cf(x2), cf(y2), bondtype)
+end
 
-# """
-# Lattice is an alias for Vector{LatticeBond}
-# """
-# const Lattice = Vector{LatticeBond}
+"""
+Lattice is an alias for Vector{LatticeBond}
+"""
+const Lattice = Vector{LatticeBond}
 
 # """
 #     honeycomb_lattice(Nx::Int,
@@ -413,8 +413,7 @@ end
 
 
 
-
-# 1/16/2025
+# 01/06/2025
 # Define a wedge bond to introduce the three-body interaction
 struct WedgeBond
   s1::Int
@@ -450,22 +449,24 @@ end
 
 
 # 01/06/2025
-# Implement the honeycomb lattice geometry using the armchair pattern
+#  Implement the wedge object to introduce the three-body interaction on the armchair geometry
 function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	"""
 		Use the armchair geometery
 	""" 
 	
 	yperiodic = yperiodic && (Ny > 2)
-	Nwedge = 3 * Nx * Ny - 4 * Ny  # Number of wedges
+	N = Nx * Ny									# Number of sites	
+	Nwedge = 3 * Nx * Ny - 4 * Ny  				# Number of wedges
 
 	wedge = Vector{WedgeBond}(undef, Nwedge)
 	# wedge = Wedge(undef, Nwedge)
 
 	b = 0
-	for n in 1 : Nwedge
+	for n in 1 : N
 		x = div(n - 1, Ny) + 1
 		y = mod(n - 1, Ny) + 1
+		@show n, x, y
 		
 		if x == 1
 			if mod(y, 2) == 1
@@ -517,6 +518,67 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 			wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
 			wedge[b += 1] = WedgeBond(n_next, n, n - Ny)
 			wedge[b += 1] = WedgeBond(n_next, n, n + Ny)
+		end
+	end
+
+	# @show wedge
+	return wedge
+end
+
+
+# 05/21/2025
+# Implement the wedge object to introduce the three-body interaction on the XC geometry
+function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
+	"""
+		Use the XC geometry with a twist
+	"""
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny									# Number of sites
+	Nwedge = 3 * Nx * Ny - 2 * 2 * Ny - 2		# Number of wedges
+	@show Nwedge
+
+	wedge = Vector{WedgeBond}(undef, Nwedge)
+	# wedge = Wedge(undef, Nwedge)
+
+	b = 0
+	for n in 1 : N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+
+		if isodd(x)
+			@show n, x, y
+			if x == 1
+				if y != 1
+					wedge[b += 1] = WedgeBond(n + Ny - 1, n, n + Ny)
+				end
+			else
+				wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+				if y == 1
+					wedge[b += 1] = WedgeBond(n - Ny, n, n - 1)
+					wedge[b += 1] = WedgeBond(n - 1, n, n + Ny)
+				else
+					wedge[b += 1] = WedgeBond(n - Ny, n, n + 2)
+					wedge[b += 1] = WedgeBond(n + 2, n, n + Ny)
+				end
+			end
+		end
+
+		if iseven(x)
+			@show n, x, y
+			if x == Nx
+				if y != Ny  
+					wedge[b += 1] = WedgeBond(n - Ny, n, n - Ny + 1)
+				end
+			else
+				wedge[b += 1] = WedgeBond(n - Ny, n, n + Ny)
+				if y == Ny
+					wedge[b += 1] = WedgeBond(n - Ny, n, n + 1)
+					wedge[b += 1] = WedgeBond(n + 1, n, n + Ny)
+				else
+					wedge[b += 1] = WedgeBond(n - Ny, n, n - Ny + 1)
+					wedge[b += 1] = WedgeBond(n - Ny + 1, n, n + Ny)
+				end
+			end
 		end
 	end
 

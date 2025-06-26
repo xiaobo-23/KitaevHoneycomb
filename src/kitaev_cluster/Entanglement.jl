@@ -1,6 +1,6 @@
 ## 12/15/2023
 # Compute the von Nuemann entanglement entropy 
-using ITensors, ITensorMPS
+using ITensors
 # using ITensors: orthocenter, sites, copy, complex, real
 
 # Measure von Neumann entanglment entropy on a sequence of bonds
