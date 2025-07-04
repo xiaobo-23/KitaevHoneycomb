@@ -2,7 +2,7 @@
 
 mkdir data
 
-for value in $(seq -0.025  -0.025  -0.4)
+for value in $(seq -0.125  -0.025  -0.5)
 do 
     mkdir kappa$value
     cp 2d_tK_honeycomb.jl  kappa$value/2d_tK_honeycomb.jl

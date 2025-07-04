@@ -27,7 +27,6 @@ OMP_NUM_THREADS = 8
 @show BLAS.get_config()
 @show BLAS.get_num_threads()
 
-
 const Nx_unit = 12
 const Ny_unit = 3
 const Nx = 2 * Nx_unit
@@ -39,16 +38,12 @@ const time_machine = TimerOutput()
 
 let
   # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = 1.0, 1.0, 1.0                      # Kitaev interactions
+  Jx, Jy, Jz = -1.0, -1.0, -1.0                   # Kitaev interactions
   kappa=0                                         # Three-spin interaction
-  t = 0.005                                       # Electron hopping amplitude
+  t = 0.35                                        # Electron hopping amplitude
   P = -10.0                                       # Chemical potential for the edge sites
   h = 0.0                                         # Zeeman field
   @show Jx, Jy, Jz, kappa, t, P, h
-
-  # Reduce the Kitaev interaction connected to the vacancy
-  # alpha = 1E-4
-  # @show Jx, Jy, Jz, alpha, kappa, t, h
 
   #***************************************************************************************************************
   #***************************************************************************************************************
@@ -78,11 +73,6 @@ let
   wedge = honeycomb_twist_wedge(Nx, Ny; yperiodic=true)
   # @show length(wedge), wedge 
   
-  # Select the position(s) of the vacancies
-  # sites_to_delete = Set{Int64}([59])            # The site number of the vacancy depends on the lattice width
-  # sites_to_delete = Set{Int64}()
-  lattice_sites = Set{Int64}(1 : N)               # The set of all sites in the lattice
-  @show lattice_sites
 
   # Identify edge sites: first 7 and last 7 sites of the lattice
   edge_sites = Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)
@@ -91,7 +81,7 @@ let
   #***************************************************************************************************************  
   
 
-  #***************************************************************************************************************
+  #***********************************************************s***************************************************
   #***************************************************************************************************************
   # Construct the Hamiltonian as MPO
   #***************************************************************************************************************
@@ -202,15 +192,6 @@ let
     end
   end
 
-  # # Add the Zeeman coupling of the spins to a magnetic field applied in [111] direction, which breaks the integrability
-  # if h > 1e-8
-  #   for site in lattice_sites
-  #     os .+= -h, "Sx", site
-  #     os .+= -0.5h, "iS-", site
-  #     os .+=  0.5h, "iS+", site
-  #     os .+= -h, "Sz", site
-  #   end
-  # end
   
   # @show count_wedge, 3 * N - 4 * Ny - 2
   if count_wedge != 3 * N - 4 * Ny - 2
@@ -247,7 +228,7 @@ let
   println("Read in the wavefunction from a file and start the sampling process.")
   println("*************************************************************************************")
 
-  file = h5open("../../t0.005/data/2d_tK_Lx12_Ly3_kappa-0.375_doped.h5", "r")
+  file = h5open("../../t0.03/data/2d_tK_Lx12_Ly3_kappa-0.375_doped.h5", "r")
   ψ₀ = read(file, "psi", MPS)
 
   # Measure one-point functions of the initial state
@@ -267,7 +248,6 @@ let
   if abs(N - sum(n₀) - 1) > 1E-6
     error("The system is not properly doped!")
   end
-
   #*****************************************************************************************************
   #*****************************************************************************************************
   
@@ -277,12 +257,9 @@ let
   # Set up the initial MPS and parameters for the DMRG simulation
   #*****************************************************************************************************
   #*****************************************************************************************************
-
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
   # sites = siteinds("tJ", N; conserve_qns=false)
   # sites = siteinds("tJ", N; conserve_nf=true)
-  sites = siteinds(ψ₀)
-  H = MPO(os, sites)
 
   # # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum 
   # # numbers as `state`
@@ -302,6 +279,27 @@ let
   # end
   # @show state
   # ψ₀ = randomMPS(sites, state, 10)
+  
+  sites = siteinds(ψ₀)
+  H = MPO(os, sites)
+  
+  # Measure one-point functions of the initial state
+  Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
+  Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
+  Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
+  Sy₀ = 0.5im * (Splus₀ - Sminus₀)
+  # @show Sy₀ 
+  Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
+  println("")
+  @show sum(n₀)
+  # @show n₀
+  println("")
+  
+  # Check if the system is properly doped before running the DMRG simulation
+  if abs(N - sum(n₀) - 1) > 1E-6
+    error("The system is not properly doped!")
+  end 
   #********************************************************************************************************
   #********************************************************************************************************
  

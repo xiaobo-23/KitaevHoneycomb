@@ -15,7 +15,7 @@ def generate_input_file(input_kappa, task_file):
 
 
 def main():
-    kappa_values = np.arange(-0.025, -0.425, -0.025)
+    kappa_values = np.arange(-0.125, -0.525, -0.025)
     kappa_values = np.around(kappa_values, decimals = 3)
 
     submit_file = open("tK", "a")

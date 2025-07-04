@@ -50,7 +50,6 @@ let
   # alpha = 1E-4
   # @show Jx, Jy, Jz, alpha, κ, t, h
 
-
   #***************************************************************************************************************
   #***************************************************************************************************************
   # Set up the honeycomb lattice with proper boundary conditions
@@ -527,7 +526,7 @@ let
     push!(order_loops, tmp_loop)
   end
   
-  for idx in 1 : length(order_loops)
+  for idx in eachindex(order_loops)
     @show centers[idx], order_loops[idx]
   end
 
@@ -602,14 +601,13 @@ let
     end
   end
 
-  for idx in 1 : length(order_parameter)
+  for idx in eachindex(order_parameter)
     @show order_parameter[idx]
   end
 
-  for idx in 1 : length(order₀)
+  for idx in eachindex(order₀)
     @show order₀[idx]
   end
-
 
   # # Print out useful information of physical quantities
   # println("")
@@ -649,8 +647,6 @@ let
 
 
   # @show time_machine
-  
-  
   # h5open("../../data/test_tK/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(κ)_doped_hopping.h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)

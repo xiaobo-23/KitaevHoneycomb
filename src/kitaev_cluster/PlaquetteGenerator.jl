@@ -6,7 +6,7 @@ function GeneratePlaquetteRings(Seed::Int, Ny::Int; edge=false)
 		Handle the bulk case and throw an error for the edge case 
 	"""
 	
-	plaqutte = Vector{Int}(undef, 6)
+	plaquette = Vector{Int}(undef, 6)
 	if edge
 		error("Edge case not implemented!")
 	end
