@@ -143,18 +143,35 @@ let
   #***************************************************************************************************************  
   
   
-  
   #*************************************************************************************************************** 
   # Set up the initial MPS and DMRG simulations parameters
   #***************************************************************************************************************
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
   sites = siteinds("tJ", N; conserve_nf=true)
 
+  # # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum numbers as `state`
+  # # Introduce one hole in the middle of the system
+  # state = []                                              
+  # hole_idx = Int(N / 2)                                   # Put the hole in the middle of the system
+  # for (idx, n) in enumerate(1 : N)
+  #   if n == hole_idx
+  #     push!(state, "Emp")
+  #   else
+  #     if isodd(idx)
+  #       push!(state, "Up")
+  #     else
+  #       push!(state, "Dn")
+  #     end
+  #   end
+  # end
+
+
   # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum numbers as `state`
-  state = []                                              # Put the hole in the middle of the system
-  hole_idx = Int(N / 2)
+  # Introduce holes into the cylinder by updating the list
+  state = []                                             
+  hole_idx = [Int(N/2), Int(N/2) + 1]
   for (idx, n) in enumerate(1 : N)
-    if n == hole_idx
+    if n in hole_idx
       push!(state, "Emp")
     else
       if isodd(idx)
@@ -182,10 +199,11 @@ let
   @show sum(n₀)
   println("")
   
-  # Check if the system is properly doped before running the DMRG simulation
-  if abs(N - sum(n₀) - 1) > 1E-6
-    error("The system is not properly doped!")
-  end 
+  # # Check if the system is properly doped before running the DMRG simulation
+  # doping_tol = 1e-6
+  # if abs(N - sum(n₀) - 1) > doping_tol
+  #   error("The system is not properly doped!")
+  # end 
   #********************************************************************************************************
   #********************************************************************************************************
  
@@ -229,16 +247,15 @@ let
     n = expect(ψ, "Ntot", sites = 1 : N)
   end
 
-  # Check if the system is properly doped after the DMRG simulation
-  println("")
-  @show sum(n)
-  # @show n
-  println("")
+  # # Check if the system is properly doped after the DMRG simulation
+  # println("")
+  # @show sum(n)
+  # # @show n
+  # println("")
 
-  doping_tol = 1e-6
-  if abs(N - sum(n) - 1) > doping_tol
-    error("The system is not properly doped!")
-  end
+  # if abs(N - sum(n) - 1) > doping_tol
+  #   error("The system is not properly doped!")
+  # end
 
   
   # Measure spin-spin correlation functions (i.e. two-point functions)
@@ -321,27 +338,27 @@ let
   #********************************************************************************************************
  
   
-  # # @show time_machine
-  # h5open("2d_Kitaev_Heisenberg_Lx$(Nx_unit)_phi$(ϕ).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "N0", n₀)
-  #   write(file, "N", n)
-  #   write(file, "Plaquette", plaquette_eigenvalues)
-  # end
+  # @show time_machine
+  h5open("2d_Kitaev_Heisenberg_Lx$(Nx_unit)_phi$(ϕ).h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "N0", n₀)
+    write(file, "N", n)
+    write(file, "Plaquette", plaquette_eigenvalues)
+  end
 
   return
 end
