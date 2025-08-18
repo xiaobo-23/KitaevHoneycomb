@@ -115,10 +115,10 @@ let
           xbond += 1
           @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
         else
-          os .+= -0.25 * K, "S+", b.s1, "S-", b.s2
-          os .+= -0.25 * K, "S-", b.s1, "S+", b.s2
-          os .+=  0.25 * K, "S+", b.s1, "S+", b.s2
-          os .+=  0.25 * K, "S-", b.s1, "S-", b.s2
+          os .+=  0.25 * K, "S+", b.s1, "S-", b.s2
+          os .+=  0.25 * K, "S-", b.s1, "S+", b.s2
+          os .+= -0.25 * K, "S+", b.s1, "S+", b.s2
+          os .+= -0.25 * K, "S-", b.s1, "S-", b.s2
           ybond += 1
           @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
         end
@@ -138,6 +138,7 @@ let
   if xbond + ybond + zbond != total_bonds
     error("The number of bonds in the Hamiltonian is not correct!")
   end
+  # @show xbond, ybond, zbond
   #***************************************************************************************************************
   #***************************************************************************************************************  
   
@@ -194,7 +195,7 @@ let
   # Run the DMRG simulation and obtain the ground state wavefunction
   #******************************************************************************************************
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 2
+  nsweeps = 20
   maxdim  = [20, 100, 200, 500, 800, 1000, 1500, 3000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 35
@@ -218,16 +219,6 @@ let
   #******************************************************************************************************
   # Take measurements of the wavefunction after the DMRG simulation
   #******************************************************************************************************
-  # Check if the system is properly doped after the DMRG simulation
-  println("")
-  @show sum(n)
-  @show n
-  println("")
-
-  if abs(N - sum(n) - 1) > 1E-6
-    error("The system is not properly doped!")
-  end
-  
   # Measure local observables (i.e. one-point functions)
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
@@ -238,7 +229,18 @@ let
     n = expect(ψ, "Ntot", sites = 1 : N)
   end
 
+  # Check if the system is properly doped after the DMRG simulation
+  println("")
+  @show sum(n)
+  # @show n
+  println("")
 
+  doping_tol = 1e-6
+  if abs(N - sum(n) - 1) > doping_tol
+    error("The system is not properly doped!")
+  end
+
+  
   # Measure spin-spin correlation functions (i.e. two-point functions)
   @timeit time_machine "two-point functions" begin
     xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
@@ -295,6 +297,7 @@ let
         W = MPO(os_w, sites)
         plaquette_eigenvalues[idx1] += (-1.0)^idx2 * real(inner(ψ', W, ψ))
       end
+      # Normalize the plaquette eigenvalues because the plaquette operator is in sigma notation
       plaquette_eigenvalues[idx1] *= 2^6 / 4
     end
   end
@@ -302,7 +305,6 @@ let
   println("Eigenvalues of the plaquette operator:")
   @show plaquette_eigenvalues
   println("")
-
 
 
   # Check the variance of the energy
@@ -319,27 +321,27 @@ let
   #********************************************************************************************************
  
   
-  # @show time_machine
-  h5open("2d_Kitaev_Heisenberg_Lx$(Nx_unit)_phi$(ϕ).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    write(file, "N0", n₀)
-    write(file, "N", n)
-    write(file, "Plaquette", plaquette_eigenvalues)
-  end
+  # # @show time_machine
+  # h5open("2d_Kitaev_Heisenberg_Lx$(Nx_unit)_phi$(ϕ).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "N0", n₀)
+  #   write(file, "N", n)
+  #   write(file, "Plaquette", plaquette_eigenvalues)
+  # end
 
   return
 end
