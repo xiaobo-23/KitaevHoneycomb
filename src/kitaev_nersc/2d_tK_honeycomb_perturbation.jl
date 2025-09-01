@@ -22,9 +22,11 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
+
 # Monitor the number of threads used by BLAS and LAPACK
 @show BLAS.get_config()
 @show BLAS.get_num_threads()
+
 
 const Nx_unit = 10
 const Ny_unit = 3
@@ -34,15 +36,13 @@ const N = Nx * Ny
 
 # Timing and profiling
 const time_machine = TimerOutput()
-
-
 let
   # Set up the parameters in the Hamiltonian
   Jx, Jy, Jz = -1.0, -1.0, -1.0                   # Kitaev interactions
   kappa=0                                         # Three-spin interaction
-  t = 0.05                                        # Electron hopping amplitude
+  t = 0.01                                        # Electron hopping amplitude
   P = -10.0                                       # Chemical potential for the edge sites                        
-  lambda₁, lambda₂ = 0.2, 0.2                     # Loop perturbation on the edges of a lattice
+  lambda₁, lambda₂ = 64.0, 64.0                   # Loop perturbation on the edges of a lattice
   @info "Hamiltonian parameters" Jx=Jx Jy=Jy Jz=Jz kappa=kappa t=t P=P lambda₁=lambda₁ lambda₂=lambda₂
 
 
@@ -197,6 +197,7 @@ let
     error("The number of three-spin interaction terms is not correct! Expected: $expected_wedge, Found: $count_wedge")
   end
 
+  
   # Add edge chemical potential to prevent the hole being trapped on the edge of the cylinder
   if abs(P) > 1e-8
     for site in edge_sites
@@ -205,31 +206,37 @@ let
     end
   end
 
+  
+  #*************************************************************************************************** 
+  # Adding loop perturbation terms into the Hamiltonian
+  #***************************************************************************************************
 
   # Set up the loop operators and loop indices 
   loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
   loop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y")  
-  @show size(loop_indices), loop_indices
+  nloops = size(loop_indices, 1)
+  loop_indices_symmetric = LoopList_RightTwist_Symmetric(Nx_unit, Ny_unit, "rings", "y")
+  @show nloops, loop_indices
+  @show size(loop_indices_symmetric, 1), loop_indices_symmetric
 
-  #*************************************************************************************************** 
-  # Adding loop perturbation terms into the Hamiltonian
-  #***************************************************************************************************
+  
   if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8
     for idx in 1 : 3
-      @show "Adding loop perturbation terms for loop index" idx, size(loop_indices, 1) - idx + 1
-      os .+= lambda₁, loop_operator[1], loop_indices[idx, 1], 
+      @show "Adding loop perturbation terms for loop index" idx, nloops - idx + 1
+      @show loop_indices[idx, :], loop_indices_symmetric[nloops - idx + 1, :]
+      os .+= -1.0 * lambda₁, loop_operator[1], loop_indices[idx, 1], 
             loop_operator[2], loop_indices[idx, 2], 
             loop_operator[3], loop_indices[idx, 3], 
             loop_operator[4], loop_indices[idx, 4], 
             loop_operator[5], loop_indices[idx, 5], 
             loop_operator[6], loop_indices[idx, 6]
 
-      os .+= lambda₂, loop_operator[1], loop_indices[size(loop_indices, 1) - idx + 1, 1], 
-            loop_operator[2], loop_indices[size(loop_indices, 1) - idx + 1, 2], 
-            loop_operator[3], loop_indices[size(loop_indices, 1) - idx + 1, 3], 
-            loop_operator[4], loop_indices[size(loop_indices, 1) - idx + 1, 4], 
-            loop_operator[5], loop_indices[size(loop_indices, 1) - idx + 1, 5], 
-            loop_operator[6], loop_indices[size(loop_indices, 1) - idx + 1, 6]
+      os .+= -1.0 * lambda₂, loop_operator[1], loop_indices_symmetric[nloops - idx + 1, 1], 
+            loop_operator[2], loop_indices_symmetric[nloops - idx + 1, 2], 
+            loop_operator[3], loop_indices_symmetric[nloops - idx + 1, 3], 
+            loop_operator[4], loop_indices_symmetric[nloops - idx + 1, 4], 
+            loop_operator[5], loop_indices_symmetric[nloops - idx + 1, 5], 
+            loop_operator[6], loop_indices_symmetric[nloops - idx + 1, 6]
     end
   end
 
@@ -248,11 +255,11 @@ let
   #***************************************************************************************************************  
   
   
-  #********************************************************************************************************
-  #********************************************************************************************************
+  # ********************************************************************************************************
+  # ********************************************************************************************************
   # Read in the ground-state wavefunction from a file and sample the wavefunction
-  #********************************************************************************************************
-  #********************************************************************************************************
+  # ********************************************************************************************************
+  # ********************************************************************************************************
   # println("*************************************************************************************")
   # println("Read in the wavefunction from a file and start the sampling process.")
   # println("*************************************************************************************")
@@ -278,8 +285,8 @@ let
   # if abs(N - sum(n₀) - 1) > 1E-6
   #   error("The system is not properly doped!")
   # end
-  #*****************************************************************************************************
-  #*****************************************************************************************************
+  # *****************************************************************************************************
+  # *****************************************************************************************************
   
   
   #*****************************************************************************************************
@@ -312,19 +319,19 @@ let
   ψ₀ = randomMPS(sites, state, 10)
   
 
-  
+  # Set up the Hamiltonian as an MPO
   H = MPO(os, sites)
+  
   # Measure one-point functions of the initial state
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
   Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
   Sy₀ = 0.5im * (Splus₀ - Sminus₀)
-  # @show Sy₀ 
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
   println("")
   @show sum(n₀)
-  # @show n₀
   println("")
   
   # Check if the system is properly doped before running the DMRG simulation
@@ -341,7 +348,7 @@ let
   #******************************************************************************************************
   #******************************************************************************************************
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 20
+  nsweeps = 1
   maxdim  = [20, 100, 200, 500, 800, 1000, 1500, 5000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 35
@@ -385,7 +392,6 @@ let
     error("The system is not properly doped!")
   end
   
-
   # Measure spin correlation functions (two-point functions)  
   @timeit time_machine "two-point functions" begin
     xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
@@ -396,11 +402,13 @@ let
   # Measure the loop operators along the y direction of the cylinder
   # The number of terms in the loop operator depends on the width of the cylinder 
   @timeit time_machine "loop operators" begin
-    nloops = size(loop_indices, 1)
     yloop_eigenvalues = zeros(Float64, nloops)
-    
+    yloop_eigenvalues_symmetric = zeros(Float64, nloops)
+
     for idx in 1 : nloops
       indices = loop_indices[idx, :]
+      indices_symmetric = loop_indices_symmetric[idx, :]  
+
       # Construct the loop operators as MPOs and compute the eigenvalues
       os_wl = OpSum()
       os_wl += loop_operator[1], indices[1], 
@@ -414,9 +422,25 @@ let
       # The normalize factor is due to the difference between Pauli operators and spin operators
       yloop_eigenvalues[idx] = real(inner(ψ', Wl, ψ))
       yloop_eigenvalues[idx] *= 2^6 
+
+      # Construct the loop operators as MPOs and compute the eigenvalues
+      os_wl_symmetric = OpSum()
+      os_wl_symmetric += loop_operator[1], indices_symmetric[1], 
+        loop_operator[2], indices_symmetric[2], 
+        loop_operator[3], indices_symmetric[3], 
+        loop_operator[4], indices_symmetric[4], 
+        loop_operator[5], indices_symmetric[5], 
+        loop_operator[6], indices_symmetric[6]
+      Wl_symmetric = MPO(os_wl_symmetric, sites)
+
+      # The normalize factor is due to the difference between Pauli operators and spin operators
+      yloop_eigenvalues_symmetric[idx] = real(inner(ψ', Wl_symmetric, ψ))
+      yloop_eigenvalues_symmetric[idx] *= 2^6       
     end
   end
   # @show yloop_eigenvalues
+  # @show yloop_eigenvalues_symmetric
+
 
   # Measure the eigenvalues of plaquette operators
   # Decompose the plaquette operators into four terms for tJ type of sites
@@ -673,6 +697,7 @@ let
   print("")
   println("Eigenvalues of the loop operator(s):")
   @show yloop_eigenvalues
+  @show yloop_eigenvalues_symmetric
   println("")
 
   # # println("")
@@ -680,30 +705,32 @@ let
   # # @show order_parameter
   # # println("")
 
-  # @show time_machine
-  h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/AFM/W3/Lx12/t0.05_opt1/data/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5", "w") do file
-    write(file, "psi", ψ)
-    write(file, "NormalizedE0", energy / number_of_bonds)
-    write(file, "E0", energy)
-    write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    write(file, "Czz", zzcorr)
-    write(file, "N0", n₀)
-    write(file, "N", n)
-    write(file, "Plaquette", plaquette_eigenvalues)
-    write(file, "Loop", yloop_eigenvalues)
-    write(file, "OrderParameter", order_parameter)
-  end
+  # # @show time_machine
+  # h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/AFM/W3/Lx12/perturbation/WL+1_WR+1/t0.01/data/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5", "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "NormalizedE0", energy / number_of_bonds)
+  #   write(file, "E0", energy)
+  #   write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "N0", n₀)
+  #   write(file, "N", n)
+  #   write(file, "Plaquette", plaquette_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "LoopSymmetric", yloop_eigenvalues_symmetric)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
 
+  
   return
 end
