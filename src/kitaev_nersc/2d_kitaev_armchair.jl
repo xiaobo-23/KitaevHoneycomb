@@ -209,16 +209,64 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
-
-  # Generate the indices for all loop operators along the cylinder
-  loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Set up loop operators along the periodic direction of the cylinder
+  # loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
+  loop_operator = ["iSy", "Sx", "iSy", "Sx", "iSy", "Sx", "iSy", "Sx"]  # Hard-coded for width-4 cylinders
+  loop_operator = [
+    ["S+", "Sx", "S+", "Sx", "S+", "Sx", "S+", "Sx"],
+    ["S+", "Sx", "S+", "Sx", "S+", "Sx", "S-", "Sx"],
+    ["S+", "Sx", "S+", "Sx", "S-", "Sx", "S+", "Sx"],
+    ["S+", "Sx", "S+", "Sx", "S-", "Sx", "S-", "Sx"],
+    ["S+", "Sx", "S-", "Sx", "S+", "Sx", "S+", "Sx"],
+    ["S+", "Sx", "S-", "Sx", "S+", "Sx", "S-", "Sx"],
+    ["S+", "Sx", "S-", "Sx", "S-", "Sx", "S+", "Sx"],
+    ["S+", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
+    ["S-", "Sx", "S+", "Sx", "S+", "Sx", "S+", "Sx"],
+    ["S-", "Sx", "S+", "Sx", "S+", "Sx", "S-", "Sx"],
+    ["S-", "Sx", "S+", "Sx", "S-", "Sx", "S+", "Sx"],
+    ["S-", "Sx", "S+", "Sx", "S-", "Sx", "S-", "Sx"],
+    ["S-", "Sx", "S-", "Sx", "S+", "Sx", "S+", "Sx"],
+    ["S-", "Sx", "S-", "Sx", "S+", "Sx", "S-", "Sx"],
+    ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S+", "Sx"],
+    ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
+  ]
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  @show loop_indices
-
-  # Generate the plaquette indices for all the plaquettes in the cylinder
-  plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
+  nloops = size(loop_indices, 1)
+  for idx in 1 : nloops
+    @show idx, loop_indices[idx, :]
+  end
+  
+  loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]
+  @show loops_signs
+  # for loop in loop_operator
+  #   @show loop
+  #   @show (-1.0)^count(==("S-"), loop)
+  # end
+  println("")
+  println("")
+  
+  
+  # Set up plaquette operators for each hexagonal plaquette
+  # plaquette_operator = ["iSy", "Sz", "Sx", "Sx", "Sz", "iSy"]
+  plaquette = [
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S-"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S-"],  
+  ]
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  @show plaquette_indices
+  nplaquettes = size(plaquette_indices, 1)
+  for idx in 1 : nplaquettes
+    @show idx, plaquette_indices[idx, :]
+  end
+  plaquette_signs = [(-1.0)^count(==("S-"), plaq) for plaq in plaquette]
+  @show plaquette_signs
+  println("")
+  println("")
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -244,8 +292,12 @@ let
   if count(==("Emp"), state) != 1
     error("The system is not proper doped with one hole!")
   end
+  println(repeat("#", 100))
   println("Initial state used in DMRG simulation:")
   @show state
+  println(repeat("#", 100))
+  println("")
+  println("")
   ψ₀ = randomMPS(sites, state, 8)
   
 
@@ -308,67 +360,98 @@ let
     
     n = expect(ψ, "Ntot", sites = 1 : N)
     if abs(N - sum(n) - 1) > 1e-8
-      error("The initial state does not have the correct number of electrons!")
+      error("The optimized state does not have the correct number of electrons!")
     end
     println(repeat("#", 100))
-    println("Initial electron density before DMRG simulation:")
+    println("Electron density computed based on the optimized wavefunction: ")
     println("n = $n")
     println(repeat("#", 100))
   end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
-  # @timeit time_machine to "two-point functions" begin
-  #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-  # end
-
-
-  # Compute the eigenvalues of plaquette operators
+  
+  
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Measure two-point correlation functions based on the optimized ground state wavefunction
+  @timeit time_machine "two-point functions" begin
+    xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+    yyplusplus = correlation_matrix(ψ, "S+", "S+", sites = 1 : N)
+    yyplusminus = correlation_matrix(ψ, "S+", "S-", sites = 1 : N)
+    yyminusplus = correlation_matrix(ψ, "S-", "S+", sites = 1 : N)
+    yyminusminus = correlation_matrix(ψ, "S-", "S-", sites = 1 : N)
+    yycorr = -0.25 * (yyplusplus - yyplusminus - yyminusplus + yyminusminus)
+    zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
+  end
+  #***************************************************************************************************************
+  #***************************************************************************************************************
+  
+  
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Compute the expectation values of plaquettr operators 
   # normalize!(ψ)
-  @timeit time_machine "plaquette operators" begin
-    W_operator_eigenvalues = zeros(Float64, size(plaquette_indices, 1))
+  @timeit time_machine "Plaquette Operators" begin
+    plaquette_vals = zeros(Float64, nplaquettes)
     
     # Compute the eigenvalues of the plaquette operator
-    for index in 1 : size(plaquette_indices, 1)
-      @show plaquette_indices[index, :]
-      os_w = OpSum()
-      os_w += plaquette_operator[1], plaquette_indices[index, 1], 
-        plaquette_operator[2], plaquette_indices[index, 2], 
-        plaquette_operator[3], plaquette_indices[index, 3], 
-        plaquette_operator[4], plaquette_indices[index, 4], 
-        plaquette_operator[5], plaquette_indices[index, 5], 
-        plaquette_operator[6], plaquette_indices[index, 6]
-      W = MPO(os_w, sites)
-      W_operator_eigenvalues[index] = -1.0 * real(inner(ψ', W, ψ))
-      # @show inner(ψ', W, ψ) / inner(ψ', ψ)
+    for idx1 in 1 : nplaquettes
+      tmp_indices = plaquette_indices[idx1, :]
+
+      for idx2 in 1 : 4
+        operator = plaquette[idx2]
+        
+        os_w = OpSum()
+        os_w += operator[1], tmp_indices[1], 
+          operator[2], tmp_indices[2], 
+          operator[3], tmp_indices[3], 
+          operator[4], tmp_indices[4], 
+          operator[5], tmp_indices[5], 
+          operator[6], tmp_indices[6]
+        W = MPO(os_w, sites)
+
+        plaquette_vals[idx1] += -1.0 * plaquette_signs[idx2] * real(inner(ψ', W, ψ))
+      end
+      
+      # Normalize the eigenvalues of the plaquette operator
+      plaquette_vals[idx1] *= 2^6/4
     end
   end
-  @show W_operator_eigenvalues
+  @show plaquette_vals
+
   
-  # Compute the eigenvalues of the loop operators 
-  # The loop operators depend on the width of the cylinder  
-  @timeit time_machine "loop operators" begin
-    yloop_eigenvalues = zeros(Float64, size(loop_indices)[1])
+
+  # Compute the expectation values of loop operators along the periodic direction of the cylinder
+  @timeit time_machine "Loop Operators" begin
+    loop_vals = zeros(Float64, nloops)
     
     # Compute eigenvalues of the loop operators in the direction with PBC.
-    for index in 1 : size(loop_indices)[1]
-      ## Construct loop operators along the y direction with PBC
-      os_wl = OpSum()
-      os_wl += loop_operator[1], loop_indices[index, 1], 
-        loop_operator[2], loop_indices[index, 2], 
-        loop_operator[3], loop_indices[index, 3], 
-        loop_operator[4], loop_indices[index, 4], 
-        loop_operator[5], loop_indices[index, 5], 
-        loop_operator[6], loop_indices[index, 6],
-        loop_operator[7], loop_indices[index, 7],
-        loop_operator[8], loop_indices[index, 8]
+    for idx1 in 1 : nloops
+      tmp_indices = loop_indices[idx1, :]
 
-      Wl = MPO(os_wl, sites)
-      yloop_eigenvalues[index] = real(inner(ψ', Wl, ψ))
+      for idx2 in 1 : 16
+        operator = loop_operator[idx2]
+        
+        os_w = OpSum()
+        os_w += operator[1], tmp_indices[1], 
+          operator[2], tmp_indices[2], 
+          operator[3], tmp_indices[3], 
+          operator[4], tmp_indices[4], 
+          operator[5], tmp_indices[5], 
+          operator[6], tmp_indices[6],
+          operator[7], tmp_indices[7],
+          operator[8], tmp_indices[8]
+        W = MPO(os_w, sites)
+
+        loop_vals[idx1] += 2^8 * loops_signs[idx2] * real(inner(ψ', W, ψ))
+      end
+      
+      loop_vals[idx1] *= 1/16
     end
   end
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
 
 
   # # Compute the eigenvalues of the order parameters near vacancies
@@ -404,45 +487,61 @@ let
   #   end
   # end
 
-  
-  # Print out useful information of physical quantities
-  println("")
-  println("Visualize the optimization history of the energy and bond dimensions:")
-  @show custom_observer.ehistory_full
-  @show custom_observer.ehistory
-  @show custom_observer.chi
-  # @show number_of_bonds, energy / number_of_bonds
-  # @show N, energy / N
-  println("")
-
-  # Check the variance of the energy
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Check the variance of the energy based on the optimized ground state wavefunction
   @timeit time_machine "compaute the variance" begin
     H2 = inner(H, ψ, H, ψ)
     E₀ = inner(ψ', H, ψ)
     variance = H2 - E₀^2
   end
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+ 
+  
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Print out the values of various physical quantities measured
+  println(repeat("#", 100))
+  println(repeat("#", 100))
+  println("Output data for the entire simulation:")
+
   println("")
+  println("Visualize the optimization history of the energy and bond dimensions:")
+  @show custom_observer.ehistory_full
+  @show custom_observer.ehistory
+  @show custom_observer.chi
+  println("")
+
+  
+  println("")
+  println("Ground state energy is:")
   @show E₀
   println("Variance of the energy is $variance")
   println("")
   
 
   println("")
-  println("Eigenvalues of the plaquette operator:")
-  @show W_operator_eigenvalues
+  println("Expectation values of plaquette operators: ")
+  @show plaquette_vals
   println("")
 
 
   print("")
-  println("Eigenvalues of the loop operator(s):")
-  @show yloop_eigenvalues
+  println("Expectation values of loop operators:")
+  @show loop_vals
   println("")
+
 
   # println("")
   # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
   # @show order_parameter
   # println("")
 
+  println(repeat("#", 100))
+  println(repeat("#", 100))
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
 
   @show time_machine
   # h5open("data/2d_tK_armchair_FM_Lx$(Nx_unit)_Ly$(Ly_unit)_kappa$(kappa).h5", "w") do file
@@ -464,8 +563,8 @@ let
   #   # write(file, "Czz", zzcorr)
   #   write(file, "N0", n₀)
   #   write(file, "N", n)
-  #   write(file, "Plaquette", W_operator_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "Plaquette", plaquette_vals)
+  #   write(file, "Loop", loop_vals)
   #   # write(file, "OrderParameter", order_parameter)
   # end
 
