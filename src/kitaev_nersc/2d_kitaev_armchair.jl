@@ -184,14 +184,32 @@ let
   sites = siteinds("tJ", N; conserve_nf=true)
   H = MPO(os, sites)
 
-  # Initialize wavefunction to a random MPS of bond-dimension 20 with same quantum 
-  # numbers as `state`
-  state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  # Initialize wavefunction as a random MPS with same quantum numbers as `state`
+  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
+  state = []
+  hole_index = div(N, 2)
+  for (idx, n) in enumerate(1 : N)
+    if n == hole_index 
+      push!(state, "Emp")
+    else
+      if isodd(n)
+        push!(state, "Up")
+      else
+        push!(state, "Dn")
+      end
+    end
+  end
+  if count(==("Emp"), state) != 1
+    error("The system is not proper doped with one hole!")
+  end
+  println("Initial state used in DMRG simulation:")
+  @show state
   ψ₀ = randomMPS(sites, state, 8)
   
+
   # Set up the parameters including bond dimensions and truncation error
   nsweeps = 1
-  maxdim  = [20, 60, 100, 500, 800, 1000, 1500, 3000]
+  maxdim  = [20, 100, 500, 800, 1000, 1500, 5000]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50
   
@@ -202,14 +220,19 @@ let
 
   #*****************************************************************************************************
   #*****************************************************************************************************
-  # Measure one-point functions of the initial state
+  # Measure local observables (one-point functions) before starting the DMRG simulation
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
-  Sy₀ = expect(ψ₀, "iSy", sites = 1 : N)
+  Splus₀ = expect(ψ₀, "S+", sites = 1 : N)
+  Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
+  Sy₀ = -0.5im * (Splus₀ - Sminus₀)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   #*****************************************************************************************************
   #*****************************************************************************************************
   
 
+  #*****************************************************************************************************
+  #*****************************************************************************************************
+  # Run the DMRG optimization to the find the ground state of the Kitaev Hamiltonian
   # Construct a custom observer and stop the DMRG calculation early if needed 
   # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
   custom_observer = CustomObserver()
@@ -218,14 +241,26 @@ let
   @timeit time_machine "dmrg simulation" begin
     energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
   end
+  #*****************************************************************************************************
+  #*****************************************************************************************************
   
+  
+  #*****************************************************************************************************
+  #*****************************************************************************************************
   # Measure local observables (one-point functions) after finish the DMRG simulation
+  #*****************************************************************************************************
+  #*****************************************************************************************************
   @timeit time_machine "one-point functions" begin
     Sx = expect(ψ, "Sx", sites = 1 : N)
-    Sy = expect(ψ, "iSy", sites = 1 : N)
+    Splus = expect(ψ, "S+", sites = 1 : N)
+    Sminus = expect(ψ, "S-", sites = 1 : N)
+    Sy = -0.5im * (Splus - Sminus)
     Sz = expect(ψ, "Sz", sites = 1 : N)
   end
+  #*****************************************************************************************************
+  #*****************************************************************************************************
 
+  
   # @timeit time_machine to "two-point functions" begin
   #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
   #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
@@ -353,8 +388,6 @@ let
 
 
   @show time_machine
-  
-  
   # h5open("data/test/armchair_geometery/2d_kitaev_honeycomb_armchair_FM_Lx$(Nx_unit)_h$(h).h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
