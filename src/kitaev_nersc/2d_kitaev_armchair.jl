@@ -42,7 +42,7 @@ let
   kappa=-0.4                        # Three-spin interaction strength
   t=0                               # Electron hopping amplitude
   P=-10.0                           # Chemical potential on the edges of the cylinder
-  λ₁, λ₂ = -64.0, -64.0             # Perturbation strengths for the loop operators on both edges of the cylinder
+  λ₁, λ₂ = -256.0, -256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
   println(repeat("#", 100))
   println("# Parameters simulated in the Hamiltonian #")
   @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
@@ -206,14 +206,9 @@ let
       @info "Added chemical potential wall" site=site potential=P
     end
   end
-  #***************************************************************************************************************
-  #*************************************************************************************************************** 
 
-  #***************************************************************************************************************
-  #*************************************************************************************************************** 
   # Set up loop operators along the periodic direction of the cylinder
-  # loop_operator = Vector{String}(["iY", "X", "iY", "X", "iY", "X", "iY", "X"])  # Hard-coded for width-4 cylinders
-  loop_operator = ["iSy", "Sx", "iSy", "Sx", "iSy", "Sx", "iSy", "Sx"]  # Hard-coded for width-4 cylinders
+  # loop_operator = ["iSy", "Sx", "iSy", "Sx", "iSy", "Sx", "iSy", "Sx"]  # Hard-coded for width-4 cylinders
   loop_operator = [
     ["S+", "Sx", "S+", "Sx", "S+", "Sx", "S+", "Sx"],
     ["S+", "Sx", "S+", "Sx", "S+", "Sx", "S-", "Sx"],
@@ -246,27 +241,39 @@ let
   # end
   println("")
   println("")
-  
-  
-  # Set up plaquette operators for each hexagonal plaquette
-  # plaquette_operator = ["iSy", "Sz", "Sx", "Sx", "Sz", "iSy"]
-  plaquette = [
-    ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
-    ["S+", "Sz", "Sx", "Sx", "Sz", "S-"],
-    ["S-", "Sz", "Sx", "Sx", "Sz", "S+"],
-    ["S-", "Sz", "Sx", "Sx", "Sz", "S-"],  
-  ]
-  plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
-  nplaquettes = size(plaquette_indices, 1)
-  for idx in 1 : nplaquettes
-    @show idx, plaquette_indices[idx, :]
+
+  if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
+    for idx in 1 : 3
+      @show "Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)"
+
+      for idx_op in 1 : 16
+        operator = loop_operator[idx_op]
+
+        os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
+          operator[1], loop_indices[idx, 1], 
+          operator[2], loop_indices[idx, 2], 
+          operator[3], loop_indices[idx, 3], 
+          operator[4], loop_indices[idx, 4], 
+          operator[5], loop_indices[idx, 5], 
+          operator[6], loop_indices[idx, 6],
+          operator[7], loop_indices[idx, 7],
+          operator[8], loop_indices[idx, 8]
+
+        os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
+          operator[1], loop_indices[nloops - idx + 1, 1], 
+          operator[2], loop_indices[nloops - idx + 1, 2], 
+          operator[3], loop_indices[nloops - idx + 1, 3], 
+          operator[4], loop_indices[nloops - idx + 1, 4], 
+          operator[5], loop_indices[nloops - idx + 1, 5], 
+          operator[6], loop_indices[nloops - idx + 1, 6],
+          operator[7], loop_indices[nloops - idx + 1, 7],
+          operator[8], loop_indices[nloops - idx + 1, 8]
+      end
+    end
   end
-  plaquette_signs = [(-1.0)^count(==("S-"), plaq) for plaq in plaquette]
-  @show plaquette_signs
-  println("")
-  println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
+
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -390,7 +397,26 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Compute the expectation values of plaquettr operators 
+  # Set up plaquette operators for each hexagonal plaquette
+  # plaquette_operator = ["iSy", "Sz", "Sx", "Sx", "Sz", "iSy"]
+  plaquette = [
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S+", "Sz", "Sx", "Sx", "Sz", "S-"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S+"],
+    ["S-", "Sz", "Sx", "Sx", "Sz", "S-"],  
+  ]
+  plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
+  nplaquettes = size(plaquette_indices, 1)
+  for idx in 1 : nplaquettes
+    @show idx, plaquette_indices[idx, :]
+  end
+  plaquette_signs = [(-1.0)^count(==("S-"), plaq) for plaq in plaquette]
+  @show plaquette_signs
+  println("")
+  println("")
+
+
+  # Compute the expectation values of plaquette operators
   # normalize!(ψ)
   @timeit time_machine "Plaquette Operators" begin
     plaquette_vals = zeros(Float64, nplaquettes)
