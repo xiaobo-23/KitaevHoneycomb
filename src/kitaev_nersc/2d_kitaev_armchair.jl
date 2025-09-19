@@ -66,13 +66,16 @@ let
     # @show length(lattice)
   end 
 
-
   # Construct the wedges to set up three-spin interactions 
   wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
   if length(wedge) != number_of_wedges
     error("The number of wedges in the lattice does not match the expected number of wedges!")
   end
-  @show wedge
+  # @show wedge
+
+  # Identify edge sites: first 6*Ny and last 6*Ny sites of the lattice
+  edge_sites = Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)
+  @show length(edge_sites), edge_sites  
 
   #***************************************************************************************************************
   #***************************************************************************************************************  
@@ -194,6 +197,15 @@ let
     error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
   end
   @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts
+
+
+  # Set up the edge chemical potential walls to confine the hole in the bulk of the cylinder
+  if abs(P) > 1e-8
+    for site in edge_sites
+      os .+= P, "Ntot", site
+      @info "Added chemical potential wall" site=site potential=P
+    end
+  end
   #***************************************************************************************************************
   #***************************************************************************************************************  
 
