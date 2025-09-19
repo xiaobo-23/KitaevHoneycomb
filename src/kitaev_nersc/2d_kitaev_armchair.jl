@@ -56,27 +56,30 @@ let
   # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
-    @show length(lattice)
+    # @show length(lattice)
   else
     lattice = honeycomb_lattice_armchair(Nx, Ny; yperiodic=true)
-    @show length(lattice)
+    if length(lattice) != number_of_bonds
+      error("The number of bonds in the lattice does not match the expected number of bonds!")
+    end
+    # @show length(lattice)
   end 
-  # number_of_bonds = length(lattice)
 
 
-  # Construct the wedges ito set up three-spin interactions 
+  # Construct the wedges to set up three-spin interactions 
   wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
-  @show length(wedge)
+  # @show length(wedge)
   # @show wedge
 
   #***************************************************************************************************************
   #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
+
   # Construct the two-body interaction temrs in the Kitaev Hamiltonian
   os = OpSum()
-  xbond = 0
-  ybond = 0
-  zbond = 0
+
+  # Initialize counters for the number of bonds in each direction
+  bond_counts = Dict("xbond" => 0, "ybond" => 0, "zbond" => 0)
   for b in lattice
     # Set up the electron hopping terms
     os .+= -t, "Cdagup", b.s1, "Cup", b.s2
@@ -90,34 +93,32 @@ let
     # Set up the Sz-Sz bond interaction 
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
-      zbond += 1
+      bond_counts["zbond"] += 1
       @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     end
 
     # Set up the Sx-Sx and Sy-Sy bond interactions
     if (isodd(x_coordinate) && isodd(b.s1) && isodd(b.s2)) || (iseven(x_coordinate) && iseven(b.s1) && iseven(b.s2))
       os .+= -Jx, "Sx", b.s1, "Sx", b.s2
-      xbond += 1
+      bond_counts["xbond"] += 1
       @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
     elseif (isodd(x_coordinate) && iseven(b.s1) && iseven(b.s2)) || (iseven(x_coordinate) && isodd(b.s1) && isodd(b.s2))
-      # os .+= -Jy, "Sy", b.s1, "Sy", b.s2
       os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
       os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
-      ybond += 1
+      bond_counts["ybond"] += 1
       @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
     end
-      
   end
   
+  total_bonds = bond_counts["xbond"] + bond_counts["ybond"] + bond_counts["zbond"]
+  if total_bonds != number_of_bonds
+    error("Mismatch in the number of bonds: expected $number_of_bonds, but found $total_bonds.")
+  end
+  @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
 
-  if xbond + ybond + zbond != number_of_bonds
-    error("The number of bonds in the Hamiltonian does not match the expected number of bonds!")
-  end
-  @show xbond, ybond, zbond
-  
-  
+
   # # Implement the three-body interaction terms in the Hamiltonian
   # horizontal_wedge = 0
   # vertical_wedge = 0

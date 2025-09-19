@@ -130,7 +130,7 @@ function honeycomb_lattice_armchair(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
 	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
-	@show Nbond
+	# @show Nbond
   
   	latt = Lattice(undef, Nbond)
   	b = 0
@@ -466,7 +466,7 @@ function honeycomb_armchair_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	for n in 1 : N
 		x = div(n - 1, Ny) + 1
 		y = mod(n - 1, Ny) + 1
-		@show n, x, y
+		# @show n, x, y
 		
 		if x == 1
 			if mod(y, 2) == 1
