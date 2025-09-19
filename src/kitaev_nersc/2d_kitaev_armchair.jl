@@ -31,6 +31,7 @@ const Nx = 2 * Nx_unit
 const Ny = Ny_unit
 const N = Nx * Ny
 const number_of_bonds = 6 * Nx - 4
+const number_of_wedges = 3 * N - 2 * Nx
 
 # Timing and profiling
 const time_machine = TimerOutput()
@@ -68,8 +69,10 @@ let
 
   # Construct the wedges to set up three-spin interactions 
   wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
-  # @show length(wedge)
-  # @show wedge
+  if length(wedge) != number_of_wedges
+    error("The number of wedges in the lattice does not match the expected number of wedges!")
+  end
+  @show wedge
 
   #***************************************************************************************************************
   #***************************************************************************************************************  
@@ -119,51 +122,78 @@ let
   @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
 
 
-  # # Implement the three-body interaction terms in the Hamiltonian
-  # horizontal_wedge = 0
-  # vertical_wedge = 0
-  # for w in wedge
-  #   @show w.s1, w.s2, w.s3
-  #   x_coordinate = div(w.s2 - 1, Ny) + 1
-  #   y_coordinate = mod(w.s2 - 1, Ny) + 1
-  #   if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
-  #     if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
-  #       os .+= K, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
-  #     elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1)
-  #       os .+= K, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-  #     end
-  #     horizontal_wedge += 1
-  #   end
-
-  #   if abs(w.s1 - w.s2) == 3
-  #     if w.s1 < w.s2
-  #       os .+= K, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
-  #     else
-  #       os .+= K, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
-  #     end
-  #     vertical_wedge += 1
-  #   end
+  # Set up the three-spin interaction terms in the Kitaev Hamiltonian
+  edge_counts = Dict("horizontal" => 0, "vertical" => 0)
+  for w in wedge
+    # @show w.s1, w.s2, w.s3
+    x_coordinate = div(w.s2 - 1, Ny) + 1
+    y_coordinate = mod(w.s2 - 1, Ny) + 1
+    
+    
+    # Set up the horizontal three-spin interaction terms
+    if abs(w.s1 - w.s2) == abs(w.s2 - w.s3) == Ny_unit
+      if (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
+        os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+        @info "Added three-spin interaction" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+      elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
+        # os .+= kappa, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
+        os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
+        os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        @info "Added three-spin interaction" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+      end
+      edge_counts["horizontal"] += 1
+    end
 
 
-  #   if abs(w.s2 - w.s1) == 1
-  #     if (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 1) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 0)
-  #       if w.s2 > w.s3
-  #         os .+= K, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-  #       else
-  #         os .+= K, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-  #       end
-  #     elseif (mod(x_coordinate, 2) == 1 && mod(y_coordinate, 2) == 0) || (mod(x_coordinate, 2) == 0 && mod(y_coordinate, 2) == 1) 
-  #       if w.s2 > w.s3
-  #         os .+= K, "Sx", w.s3, "Sy", w.s2, "Sz", w.s1
-  #       else
-  #         os .+= K, "Sy", w.s3, "Sx", w.s2, "Sz", w.s1
-  #       end
-  #     end
-  #     vertical_wedge += 1
-  #   end
-  # end
-  # # @show horizontal_wedge, vertical_wedge
 
+    # Set up the vertical three-spin interaction terms through periodic boundary condition along the y direction
+    if abs(w.s1 - w.s2) == Ny - 1
+      if (y_coordinate == 1 && w.s3 < w.s2) || (y_coordinate == Ny && w.s2 < w.s3)
+        os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+        os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+      elseif (y_coordinate == 1 && w.s2 < w.s3) || (y_coordinate == Ny && w.s3 < w.s2)
+        os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+      end
+      edge_counts["vertical"] += 1
+    end
+
+
+    # Set up the vertical three-spin interaction terms within the bulk of the cylinder 
+    if abs(w.s2 - w.s1) == 1
+      if (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
+        if w.s2 > w.s3
+          os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
+          os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        else
+          os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+          os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        end
+      elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
+        if w.s2 > w.s3
+          os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+          os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        else
+          os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
+          os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        end
+      end
+      edge_counts["vertical"] += 1
+    end
+  end
+  
+  total_edges = edge_counts["horizontal"] + edge_counts["vertical"]
+  if total_edges != number_of_wedges
+    error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
+  end
+  @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts
   #***************************************************************************************************************
   #***************************************************************************************************************  
 
@@ -260,7 +290,6 @@ let
   #*****************************************************************************************************
   #*****************************************************************************************************
 
-  
   # @timeit time_machine to "two-point functions" begin
   #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
   #   yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
@@ -385,6 +414,8 @@ let
   # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
   # @show order_parameter
   # println("")
+
+
 
 
   @show time_machine
