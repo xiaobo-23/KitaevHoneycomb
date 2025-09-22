@@ -1,7 +1,6 @@
-# 08/13/2025
+# 9/12/2025
 # Simulating the 2D tJ-Kitaev honeycomb model to design topological qubits based on quantum spin liquids
 # Introducing the three-spin interaction, electron hopping, and Kitaev interaction
-
 
 using ITensors
 using ITensorMPS
@@ -9,7 +8,6 @@ using HDF5
 using MKL
 using LinearAlgebra
 using TimerOutputs
-
 
 include("HoneycombLattice.jl")
 include("Entanglement.jl")
@@ -36,13 +34,14 @@ const N = Nx * Ny
 
 # Timing and profiling
 const time_machine = TimerOutput()
+
 let
   # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = -1.0, -1.0, -1.0                   # Kitaev interactions
-  kappa=0                                         # Three-spin interaction
-  t = 0.01                                        # Electron hopping amplitude
+  Jx, Jy, Jz = 1.0, 1.0, 1.0                      # Kitaev interactions
+  kappa=-0.4                                      # Three-spin interaction
+  t=0                                             # Electron hopping amplitude
   P = -10.0                                       # Chemical potential for the edge sites                        
-  lambda₁, lambda₂ = 64.0, 64.0                   # Loop perturbation on the edges of a lattice
+  lambda₁, lambda₂ = -64.0, 64.0                  # Loop perturbation on the edges of a lattice
   @info "Hamiltonian parameters" Jx=Jx Jy=Jy Jz=Jz kappa=kappa t=t P=P lambda₁=lambda₁ lambda₂=lambda₂
 
 
@@ -82,7 +81,7 @@ let
   lattice_sites = Set{Int64}(1 : N)               
   @show length(lattice_sites), lattice_sites
 
-  # Identify edge sites: first 7 and last 7 sites of the lattice
+  # Identify edge sites: first 18 and last 18 sites of the lattice
   edge_sites = Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)
   @show length(edge_sites), edge_sites
   #***************************************************************************************************************
@@ -348,10 +347,10 @@ let
   #******************************************************************************************************
   #******************************************************************************************************
   # Set up the parameters including bond dimensions and truncation error
-  nsweeps = 1
+  nsweeps = 20
   maxdim  = [20, 100, 200, 500, 800, 1000, 1500, 5000]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 35
+  eigsolve_krylovdim = 50
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   noise = [1E-6, 1E-7, 1E-8, 0.0]
@@ -705,31 +704,31 @@ let
   # # @show order_parameter
   # # println("")
 
-  # # @show time_machine
-  # h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/AFM/W3/Lx12/perturbation/WL+1_WR+1/t0.01/data/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5", "w") do file
-  #   write(file, "psi", ψ)
-  #   write(file, "NormalizedE0", energy / number_of_bonds)
-  #   write(file, "E0", energy)
-  #   write(file, "E0variance", variance)
-  #   write(file, "Ehist", custom_observer.ehistory)
-  #   write(file, "Bond", custom_observer.chi)
-  #   # write(file, "Entropy", SvN)
-  #   write(file, "Sx0", Sx₀)
-  #   write(file, "Sx",  Sx)
-  #   write(file, "Cxx", xxcorr)
-  #   write(file, "Sy0", Sy₀)
-  #   write(file, "Sy", Sy)
-  #   # # write(file, "Cyy", yycorr)
-  #   write(file, "Sz0", Sz₀)
-  #   write(file, "Sz",  Sz)
-  #   write(file, "Czz", zzcorr)
-  #   write(file, "N0", n₀)
-  #   write(file, "N", n)
-  #   write(file, "Plaquette", plaquette_eigenvalues)
-  #   write(file, "Loop", yloop_eigenvalues)
-  #   write(file, "LoopSymmetric", yloop_eigenvalues_symmetric)
-  #   write(file, "OrderParameter", order_parameter)
-  # end
+  # @show time_machine
+  h5open("data/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa)_WL-1_WR+1.h5", "w") do file
+    write(file, "psi", ψ)
+    write(file, "NormalizedE0", energy / number_of_bonds)
+    write(file, "E0", energy)
+    write(file, "E0variance", variance)
+    write(file, "Ehist", custom_observer.ehistory)
+    write(file, "Bond", custom_observer.chi)
+    # write(file, "Entropy", SvN)
+    write(file, "Sx0", Sx₀)
+    write(file, "Sx",  Sx)
+    write(file, "Cxx", xxcorr)
+    write(file, "Sy0", Sy₀)
+    write(file, "Sy", Sy)
+    # # write(file, "Cyy", yycorr)
+    write(file, "Sz0", Sz₀)
+    write(file, "Sz",  Sz)
+    write(file, "Czz", zzcorr)
+    write(file, "N0", n₀)
+    write(file, "N", n)
+    write(file, "Plaquette", plaquette_eigenvalues)
+    write(file, "Loop", yloop_eigenvalues)
+    write(file, "LoopSymmetric", yloop_eigenvalues_symmetric)
+    write(file, "OrderParameter", order_parameter)
+  end
 
   
   return
