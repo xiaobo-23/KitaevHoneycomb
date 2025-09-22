@@ -31,18 +31,18 @@ const Nx = 2 * Nx_unit
 const Ny = Ny_unit
 const N = Nx * Ny
 const number_of_bonds = 6 * Nx - 4
-const number_of_wedges = 3 * N - 2 * Nx
+const number_of_wedges = 3 * N - 4 * Ny
 
 # Timing and profiling
 const time_machine = TimerOutput()
 
 let
   # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = -1.0, -1.0, -1.0     # Kitaev interaction strengths
+  Jx, Jy, Jz = 1.0, 1.0, 1.0        # Kitaev interaction strengths
   kappa=-0.4                        # Three-spin interaction strength
   t=0                               # Electron hopping amplitude
   P=-10.0                           # Chemical potential on the edges of the cylinder
-  λ₁, λ₂ = -256.0, -256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
+  λ₁, λ₂ = 256.0, 256.0             # Perturbation strengths for the loop operators on both edges of the cylinder
   println(repeat("#", 100))
   println("# Parameters simulated in the Hamiltonian #")
   @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
@@ -312,7 +312,7 @@ let
   nsweeps = 1
   maxdim  = [20, 100, 500, 800, 1000, 1500, 5000]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 50
+  eigsolve_krylovdim = 100
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
@@ -445,9 +445,12 @@ let
     end
   end
   @show plaquette_vals
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
 
-  
-
+ 
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
   # Compute the expectation values of loop operators along the periodic direction of the cylinder
   @timeit time_machine "Loop Operators" begin
     loop_vals = zeros(Float64, nloops)
@@ -480,38 +483,168 @@ let
   #*************************************************************************************************************** 
 
 
-  # # Compute the eigenvalues of the order parameters near vacancies
-  # # TO-DO: The order parameter (twelve-point correlator) loop is hard-coded for now
-  # # need to genealize in the future to automatically generate the loop indices near vacancies
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+  # Compute the eigenvalues of the order parameters near vacancies
+  @timeit time_machine "twelve-point correlator(s)" begin
+    centers = collect((2 * Ny + 1):(N - 2 * Ny))
+    @info "Central sites selected for measurement" centers=centers
 
-  # @timeit time_machine "twelve-point correlator(s)" begin
-  #   order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-  #   order_indices = Matrix{Int64}(undef, 1, 12)
-  #   # Complete the loop indices near vacancies
-  #   # order_indices[1, :] = [52, 49, 46, 43, 40, 38, 41, 39, 42, 45, 47, 50]      # On the width-3 cylinders  
-  #   order_indices[1, :] = [70, 66, 62, 58, 54, 51, 55, 52, 56, 60, 63, 67]      # On the width-4 cylinders
-  #   order_parameter = Vector{Float64}(undef, size(order_indices)[1])
+    # order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
+    order_loops = []
+    for center in centers
+      tmp_x = div(center - 1, Ny) + 1
+      tmp_y = mod(center - 1, Ny) + 1
+      tmp_loop = []
 
+      if isodd(tmp_x)
+        if isodd(tmp_y)
+          if tmp_y == 1
+            tmp₁ = center + Ny - 1
+            tmp₂ = center - 1
+            tmp₃ = center + 2 * Ny - 1
+          else
+            tmp₁ = center - 1
+            tmp₂ = center - Ny - 1
+            tmp₃ = center + Ny - 1
+          end
+
+          append!(tmp_loop, [
+            tmp₁,
+            tmp₂,
+            center - Ny,
+            center - 2 * Ny,
+            center - 2 * Ny + 1,
+            center - Ny + 1,
+            center + 1,
+            center + Ny + 1,
+            center + 2 * Ny + 1,
+            center + 2 * Ny,
+            center + Ny, 
+            tmp₃
+          ])
+        elseif iseven(tmp_y)
+          if tmp_y == Ny
+            tmp₁ = center - Ny + 1
+            tmp₂ = center + 1
+            tmp₃ = center - 2 * Ny + 1
+          else
+            tmp₁ = center + 1
+            tmp₂ = center + Ny + 1
+            tmp₃ = center - Ny + 1
+          end
+
+          append!(tmp_loop, [
+            tmp₁,
+            tmp₂,
+            center + Ny,
+            center + 2 * Ny,
+            center + 2 * Ny - 1,
+            center + Ny - 1,
+            center - 1,
+            center - Ny - 1,
+            center - 2 * Ny - 1,
+            center - 2 * Ny,
+            center - Ny,
+            tmp₃
+          ])
+        end
+      else
+        if isodd(tmp_y)
+          if tmp_y == 1
+            tmp₁ = center + 3 * Ny - 1
+            tmp₂ = center + 2 * Ny - 1
+            tmp₃ = center + Ny - 1
+            tmp₄ = center - 1
+            tmp₅ = center - Ny - 1
+          else
+            tmp₁ = center + 2 * Ny - 1
+            tmp₂ = center + Ny - 1
+            tmp₃ = center - 1
+            tmp₄ = center - Ny - 1
+            tmp₅ = center - 2 * Ny - 1
+          end
+
+          append!(tmp_loop, [
+            center + 1,
+            center + Ny + 1,
+            center + Ny,
+            center + 2 * Ny,
+            tmp₁,
+            tmp₂,
+            tmp₃,
+            tmp₄,
+            tmp₅,
+            center - 2 * Ny,
+            center - Ny,
+            center - Ny + 1
+          ])
+        else
+          if tmp_y == Ny
+            tmp₁ = center - 3 * Ny + 1
+            tmp₂ = center - 2 * Ny + 1
+            tmp₃ = center - Ny + 1
+            tmp₄ = center + 1
+            tmp₅ = center + Ny + 1
+          else
+            tmp₁ = center - 2 * Ny + 1
+            tmp₂ = center - Ny + 1
+            tmp₃ = center + 1
+            tmp₄ = center + Ny + 1
+            tmp₅ = center + 2 * Ny + 1
+          end
+
+          append!(tmp_loop, [
+            center - 1,
+            center - Ny - 1,
+            center - Ny,
+            center - 2 * Ny,
+            tmp₁,
+            tmp₂,
+            tmp₃,
+            tmp₄,
+            tmp₅,
+            center + 2 * Ny,
+            center + Ny,
+            center + Ny - 1
+          ])
+        end
+      end
+      push!(order_loops, tmp_loop)
+    end
     
-  #   @show size(order_indices)[1]
-  #   for index in 1 : size(order_indices)[1]
-  #     os_parameter = OpSum()
-  #     os_parameter += order_loop[1], order_indices[index, 1], 
-  #       order_loop[2], order_indices[index, 2], 
-  #       order_loop[3], order_indices[index, 3], 
-  #       order_loop[4], order_indices[index, 4], 
-  #       order_loop[5], order_indices[index, 5], 
-  #       order_loop[6], order_indices[index, 6],
-  #       order_loop[7], order_indices[index, 7],
-  #       order_loop[8], order_indices[index, 8],
-  #       order_loop[9], order_indices[index, 9],
-  #       order_loop[10], order_indices[index, 10],
-  #       order_loop[11], order_indices[index, 11],
-  #       order_loop[12], order_indices[index, 12]
-  #     W_parameter = MPO(os_parameter, sites)
-  #     order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-  #   end
-  # end
+    for idx in eachindex(order_loops)
+      @show centers[idx], order_loops[idx]
+    end
+
+    # function configure_signs(input_string)
+    #   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+    # end
+    
+    
+    # @show size(order_indices)[1]
+    # for index in 1 : size(order_indices)[1]
+    #   os_parameter = OpSum()
+    #   os_parameter += order_loop[1], order_indices[index, 1], 
+    #     order_loop[2], order_indices[index, 2], 
+    #     order_loop[3], order_indices[index, 3], 
+    #     order_loop[4], order_indices[index, 4], 
+    #     order_loop[5], order_indices[index, 5], 
+    #     order_loop[6], order_indices[index, 6],
+    #     order_loop[7], order_indices[index, 7],
+    #     order_loop[8], order_indices[index, 8],
+    #     order_loop[9], order_indices[index, 9],
+    #     order_loop[10], order_indices[index, 10],
+    #     order_loop[11], order_indices[index, 11],
+    #     order_loop[12], order_indices[index, 12]
+    #   W_parameter = MPO(os_parameter, sites)
+    #   order_parameter[index] = real(inner(ψ', W_parameter, ψ))
+    # end
+  end
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
+
+
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -524,7 +657,7 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
  
-  
+
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Print out the values of various physical quantities measured
