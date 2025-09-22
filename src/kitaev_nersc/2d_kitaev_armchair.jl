@@ -490,7 +490,6 @@ let
     centers = collect((2 * Ny + 1):(N - 2 * Ny))
     @info "Central sites selected for measurement" centers=centers
 
-    # order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
     order_loops = []
     for center in centers
       tmp_x = div(center - 1, Ny) + 1
@@ -617,29 +616,83 @@ let
       @show centers[idx], order_loops[idx]
     end
 
-    # function configure_signs(input_string)
-    #   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
-    # end
+    function configure_signs(input_string)
+      return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+    end
     
-    
-    # @show size(order_indices)[1]
-    # for index in 1 : size(order_indices)[1]
-    #   os_parameter = OpSum()
-    #   os_parameter += order_loop[1], order_indices[index, 1], 
-    #     order_loop[2], order_indices[index, 2], 
-    #     order_loop[3], order_indices[index, 3], 
-    #     order_loop[4], order_indices[index, 4], 
-    #     order_loop[5], order_indices[index, 5], 
-    #     order_loop[6], order_indices[index, 6],
-    #     order_loop[7], order_indices[index, 7],
-    #     order_loop[8], order_indices[index, 8],
-    #     order_loop[9], order_indices[index, 9],
-    #     order_loop[10], order_indices[index, 10],
-    #     order_loop[11], order_indices[index, 11],
-    #     order_loop[12], order_indices[index, 12]
-    #   W_parameter = MPO(os_parameter, sites)
-    #   order_parameter[index] = real(inner(ψ', W_parameter, ψ))
-    # end
+    # order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
+    order_string = [["Sz", "S+", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+    ]
+
+    order_signs = configure_signs(order_string)
+    @show order_signs
+
+    if length(centers) != size(order_loops, 1)
+      error("The size of the order parameters is not initialized correctly!")
+    end
+    order_parameter = zeros(Float64, length(centers))
+    order₀ = zeros(Float64, length(centers))
+
+    for idx1 in eachindex(order_loops)
+      loop = order_loops[idx1]
+      for idx2 in eachindex(order_string)
+        operator = order_string[idx2]
+
+        # println("")
+        # @show idx1, loop
+        # @show idx2, operator
+        # println("")
+
+        os_order = OpSum()
+        os_order +=  "Ntot", centers[idx1], 
+          operator[1], loop[1], 
+          operator[2], loop[2], 
+          operator[3], loop[3], 
+          operator[4], loop[4], 
+          operator[5], loop[5], 
+          operator[6], loop[6],
+          operator[7], loop[7],
+          operator[8], loop[8],
+          operator[9], loop[9],
+          operator[10], loop[10],
+          operator[11], loop[11],
+          operator[12], loop[12]
+        W_order = MPO(os_order, sites)
+
+        os_order_identity = OpSum()
+        os_order_identity += operator[1], loop[1], 
+          operator[2], loop[2], 
+          operator[3], loop[3], 
+          operator[4], loop[4], 
+          operator[5], loop[5], 
+          operator[6], loop[6],
+          operator[7], loop[7],
+          operator[8], loop[8],
+          operator[9], loop[9],
+          operator[10], loop[10],
+          operator[11], loop[11],
+          operator[12], loop[12]
+        W_order_identity = MPO(os_order_identity, sites)
+
+        order_parameter[idx1] += (1/2)^4 * 2^12 * order_signs[idx2] * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
+        order₀[idx1] += (1/2)^4 * 2^12 * order_signs[idx2] * real(inner(ψ', W_order, ψ))
+      end
+    end
   end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
