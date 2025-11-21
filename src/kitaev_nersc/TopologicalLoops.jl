@@ -225,9 +225,9 @@ function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String,
     # '''
 
     println("")
-    println("****************************************************************************************")
-    println("Generate the list of indices for plaquettes using armchair geometery")
-    println("****************************************************************************************")
+    println(repeat("*", 100))
+    println("Generate the list of indices for each plaqutte using armchair geometery")
+    println(repeat("*", 100))
     println("")
     
     if geometery != "armchair"
@@ -269,7 +269,7 @@ function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String,
        error("Periodic boundary condition in x direction needs to be implemented!")
     end     
 
-    @show plaquette
+    # @show plaquette
     return plaquette 
 end
 
@@ -283,9 +283,9 @@ function LoopListArmchair(inputNx:: Int, inputNy:: Int, ordering_geometery:: Str
     # '''
 
     println("")
-    println("****************************************************************************************")
-    println("Generate the list of indices for loops using armchair geometery")
-    println("****************************************************************************************")
+    println(repeat("*", 100))
+    println("Generate the list of indices for each loop using armchair geometery")
+    println(repeat("*", 100))
     println("")
 
     if ordering_geometery != "armchair"
@@ -301,6 +301,6 @@ function LoopListArmchair(inputNx:: Int, inputNy:: Int, ordering_geometery:: Str
         end
     end     
     
-    @show loop_list
+    # @show loop_list
     return loop_list
 end

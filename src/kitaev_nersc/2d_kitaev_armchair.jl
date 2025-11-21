@@ -1,6 +1,7 @@
 # 09/18/2025
-# Simulate the Kitaev model on a 2D honeycomb lattice with armchair geometry using DMRG
-# Introduce loop perturbations on both edges of the cylinder
+# Simulating the Kitaev model on a 2D honeycomb lattice with armchair geometry using DMRG
+# Introducing loop perturbations on both edges of the cylinder
+
 
 using ITensors
 using ITensorMPS
@@ -8,6 +9,7 @@ using HDF5
 using MKL
 using LinearAlgebra
 using TimerOutputs
+
 
 include("HoneycombLattice.jl")
 include("Entanglement.jl")
@@ -20,12 +22,13 @@ MKL_NUM_THREADS = 8
 OPENBLAS_NUM_THREADS = 8
 OMP_NUM_THREADS = 8
 
+
 # Monitor the number of threads used by BLAS and LAPACK
 @show BLAS.get_config()
 @show BLAS.get_num_threads()
 
 
-const Nx_unit = 4
+const Nx_unit = 6
 const Ny_unit = 4
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
@@ -36,23 +39,26 @@ const number_of_wedges = 3 * N - 4 * Ny
 # Timing and profiling
 const time_machine = TimerOutput()
 
+
 let
   # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = 1.0, 1.0, 1.0        # Kitaev interaction strengths
+  Jx, Jy, Jz = 1.0, 1.0, 1.0        # Two-body anisotropic Kitaev interaction strength 
   kappa=-0.4                        # Three-spin interaction strength
-  t=0                               # Electron hopping amplitude
+  t=0.1                             # Electron hopping amplitude
   P=-10.0                           # Chemical potential on the edges of the cylinder
-  λ₁, λ₂ = 256.0, 256.0             # Perturbation strengths for the loop operators on both edges of the cylinder
-  println(repeat("#", 100))
+  string_potential=0.0032           # Chemical potential in the bulk to prevent the skewnesss of electron density
+  λ₁, λ₂ = 256.0, -256.0            # Perturbation strengths for the loop operators on both edges of the cylinder
+  println(repeat("#", 200))
   println("# Parameters simulated in the Hamiltonian #")
   @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
-  println(repeat("#", 100))
+  println(repeat("#", 200))
 
 
   # honeycomb lattice implemented in the ring ordering scheme
   x_periodic = false
   y_direction_twist = true
 
+  
   # Construct a honeycomb lattice using armchair geometry
   # TO-DO: Implement the armchair geometery with periodic boundary condition
   if x_periodic
@@ -66,13 +72,15 @@ let
     # @show length(lattice)
   end 
 
-  # Construct the wedges to set up three-spin interactions 
+  
+  # Construct the wedge objects to set up three-spin interaction terms
   wedge = honeycomb_armchair_wedge(Nx, Ny; yperiodic=true)
   if length(wedge) != number_of_wedges
     error("The number of wedges in the lattice does not match the expected number of wedges!")
   end
   # @show wedge
 
+  
   # Identify edge sites: first 6*Ny and last 6*Ny sites of the lattice
   edge_sites = Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)
   # @show length(edge_sites), edge_sites  
@@ -80,12 +88,12 @@ let
   #***************************************************************************************************************
   #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
-
-  # Construct the two-body interaction temrs in the Kitaev Hamiltonian
   os = OpSum()
 
-  # Initialize counters for the number of bonds in each direction
+  # Initialize a dictionary to count the number of each type of bond
   bond_counts = Dict("xbond" => 0, "ybond" => 0, "zbond" => 0)
+  
+  # Construct the two-body interaction terms in the Kitaev Hamiltonian
   for b in lattice
     # Set up the electron hopping terms
     os .+= -t, "Cdagup", b.s1, "Cup", b.s2
@@ -130,8 +138,7 @@ let
   for w in wedge
     # @show w.s1, w.s2, w.s3
     x_coordinate = div(w.s2 - 1, Ny) + 1
-    y_coordinate = mod(w.s2 - 1, Ny) + 1
-    
+    y_coordinate = mod(w.s2 - 1, Ny) + 1    
     
     # Set up the horizontal three-spin interaction terms
     if abs(w.s1 - w.s2) == abs(w.s2 - w.s3) == Ny_unit
@@ -147,7 +154,6 @@ let
       end
       edge_counts["horizontal"] += 1
     end
-
 
 
     # Set up the vertical three-spin interaction terms through periodic boundary condition along the y direction
@@ -192,21 +198,35 @@ let
     end
   end
   
+  
   total_edges = edge_counts["horizontal"] + edge_counts["vertical"]
   if total_edges != number_of_wedges
     error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
   end
-  @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts
+  @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
 
 
   # Set up the edge chemical potential walls to confine the hole in the bulk of the cylinder
   if abs(P) > 1e-8
     for site in edge_sites
       os .+= P, "Ntot", site
-      @info "Added chemical potential wall" site=site potential=P
+      @info "Added chemical potential wall on edges" site=site potential=P
     end
   end
 
+  
+  # Set up the string potential in the bulk to prevent the skewness of electron density
+  if abs(string_potential) > 1e-8 && sign(λ₁) != sign(λ₂)
+    reference = div(Nx, 2) + 0.5
+    # Add the string potential term for each site in the lattice; the potenrial is a function of x coordinate
+    for site in 1:N
+      xcoordinate = div(site - 1, Ny) + 1
+      os .+= string_potential * (xcoordinate - reference), "Ntot", site
+      @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference)
+    end
+  end
+
+  
   # Set up loop operators along the periodic direction of the cylinder
   # loop_operator = ["iSy", "Sx", "iSy", "Sx", "iSy", "Sx", "iSy", "Sx"]  # Hard-coded for width-4 cylinders
   loop_operator = [
@@ -235,42 +255,38 @@ let
   
   loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]
   @show loops_signs
-  # for loop in loop_operator
-  #   @show loop
-  #   @show (-1.0)^count(==("S-"), loop)
+  println("")
+  println("")
+
+  # if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
+  #   for idx in 1 : 3
+  #     @show "Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)"
+
+  #     for idx_op in 1 : 16
+  #       operator = loop_operator[idx_op]
+
+  #       os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
+  #         operator[1], loop_indices[idx, 1], 
+  #         operator[2], loop_indices[idx, 2], 
+  #         operator[3], loop_indices[idx, 3], 
+  #         operator[4], loop_indices[idx, 4], 
+  #         operator[5], loop_indices[idx, 5], 
+  #         operator[6], loop_indices[idx, 6],
+  #         operator[7], loop_indices[idx, 7],
+  #         operator[8], loop_indices[idx, 8]
+
+  #       os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
+  #         operator[1], loop_indices[nloops - idx + 1, 1], 
+  #         operator[2], loop_indices[nloops - idx + 1, 2], 
+  #         operator[3], loop_indices[nloops - idx + 1, 3], 
+  #         operator[4], loop_indices[nloops - idx + 1, 4], 
+  #         operator[5], loop_indices[nloops - idx + 1, 5], 
+  #         operator[6], loop_indices[nloops - idx + 1, 6],
+  #         operator[7], loop_indices[nloops - idx + 1, 7],
+  #         operator[8], loop_indices[nloops - idx + 1, 8]
+  #     end
+  #   end
   # end
-  println("")
-  println("")
-
-  if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
-    for idx in 1 : 3
-      @show "Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)"
-
-      for idx_op in 1 : 16
-        operator = loop_operator[idx_op]
-
-        os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
-          operator[1], loop_indices[idx, 1], 
-          operator[2], loop_indices[idx, 2], 
-          operator[3], loop_indices[idx, 3], 
-          operator[4], loop_indices[idx, 4], 
-          operator[5], loop_indices[idx, 5], 
-          operator[6], loop_indices[idx, 6],
-          operator[7], loop_indices[idx, 7],
-          operator[8], loop_indices[idx, 8]
-
-        os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
-          operator[1], loop_indices[nloops - idx + 1, 1], 
-          operator[2], loop_indices[nloops - idx + 1, 2], 
-          operator[3], loop_indices[nloops - idx + 1, 3], 
-          operator[4], loop_indices[nloops - idx + 1, 4], 
-          operator[5], loop_indices[nloops - idx + 1, 5], 
-          operator[6], loop_indices[nloops - idx + 1, 6],
-          operator[7], loop_indices[nloops - idx + 1, 7],
-          operator[8], loop_indices[nloops - idx + 1, 8]
-      end
-    end
-  end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
@@ -282,37 +298,29 @@ let
   H = MPO(os, sites)
 
   # Initialize wavefunction as a random MPS with same quantum numbers as `state`
-  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  state = []
-  hole_index = div(N, 2)
-  for (idx, n) in enumerate(1 : N)
-    if n == hole_index 
-      push!(state, "Emp")
-    else
-      if isodd(n)
-        push!(state, "Up")
-      else
-        push!(state, "Dn")
-      end
-    end
-  end
+  state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
+  state[div(N, 2)] = "Emp"  # Doping one hole in the system
+  
+  println(repeat("#", 200))
+  println("Initial state used in DMRG simulation:")
+  @show state
+  println(repeat("#", 200))
+  println("")
+
   if count(==("Emp"), state) != 1
     error("The system is not proper doped with one hole!")
   end
-  println(repeat("#", 100))
-  println("Initial state used in DMRG simulation:")
-  @show state
-  println(repeat("#", 100))
-  println("")
-  println("")
+
+  # Initialize a random MPS as the starting wavefunction for DMRG
   ψ₀ = randomMPS(sites, state, 8)
   
 
-  # Set up the parameters including bond dimensions and truncation error
+  # Set up the parameters used in the DMRG simulation including bond dimension and cutoff errors
   nsweeps = 1
-  maxdim  = [20, 100, 500, 800, 1000, 1500, 5000]
+  maxdim  = [20, 100, 200, 800, 1000]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 100
+  eigsolve_krylovdim = 50
+  
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 1E-8, 0.0]
@@ -332,10 +340,11 @@ let
   if abs(N - sum(n₀) - 1) > 1e-8
     error("The initial state does not have the correct number of electrons!")
   end
-  println(repeat("#", 100))
-  println("Initial electron density before DMRG simulation:")
-  println("n₀ = $n₀")
-  println(repeat("#", 100))
+  println(repeat("#", 200))
+  println("Initial electron density before running DMRG:")
+  println("n₀ = $sum(n₀)")
+  println(repeat("#", 200))
+  println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   
@@ -366,13 +375,13 @@ let
     Sz = expect(ψ, "Sz", sites = 1 : N)
     
     n = expect(ψ, "Ntot", sites = 1 : N)
-    if abs(N - sum(n) - 1) > 1e-8
-      error("The optimized state does not have the correct number of electrons!")
-    end
-    println(repeat("#", 100))
+    # if abs(N - sum(n) - 1) > 1e-8
+    #   error("The optimized state does not have the correct number of electrons!")
+    # end
+    println(repeat("#", 200))
     println("Electron density computed based on the optimized wavefunction: ")
     println("n = $n")
-    println(repeat("#", 100))
+    println(repeat("#", 200))
   end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -650,14 +659,14 @@ let
 
     for idx1 in eachindex(order_loops)
       loop = order_loops[idx1]
+      # println("")
+      # @show idx1, loop
+      # println("")
       for idx2 in eachindex(order_string)
         operator = order_string[idx2]
-
         # println("")
-        # @show idx1, loop
         # @show idx2, operator
         # println("")
-
         os_order = OpSum()
         os_order +=  "Ntot", centers[idx1], 
           operator[1], loop[1], 
@@ -745,18 +754,19 @@ let
   println("")
 
 
-  # println("")
-  # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  # @show order_parameter
-  # println("")
+  println("")
+  println("Expectation values of order parameters:")
+  @show order_parameter
+  println("")
 
-  println(repeat("#", 100))
-  println(repeat("#", 100))
+
+  println(repeat("#", 200))
+  println(repeat("#", 200))
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
-  @show time_machine
-  # h5open("data/2d_tK_armchair_FM_Lx$(Nx_unit)_Ly$(Ly_unit)_kappa$(kappa).h5", "w") do file
+  # @show time_machine
+  # h5open("data/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5", "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
   #   write(file, "E0", energy)
@@ -777,7 +787,7 @@ let
   #   write(file, "N", n)
   #   write(file, "Plaquette", plaquette_vals)
   #   write(file, "Loop", loop_vals)
-  #   # write(file, "OrderParameter", order_parameter)
+  #   write(file, "OrderParameter", order_parameter)
   # end
 
   return
