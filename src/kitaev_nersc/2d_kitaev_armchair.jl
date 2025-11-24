@@ -17,42 +17,69 @@ include("TopologicalLoops.jl")
 include("CustomObserver.jl")
 
 
+# System geometry parameters
+const Nx_unit::Int = 10        # Number of unit cells in x-direction
+const Ny_unit::Int = 4         # Number of unit cells in y-direction
+const Nx::Int = 2 * Nx_unit    # Total lattice sites in x-direction
+const Ny::Int = Ny_unit        # Total lattice sites in y-direction
+const N::Int = Nx * Ny         # Total number of lattice sites
+
+
+# Lattice topology constants
+const number_of_bonds::Int = 6 * Nx - 4           # Total number of bonds in the lattice
+const number_of_wedges::Int = 3 * N - 4 * Ny     # Total number of wedges (3-spin interaction sites)
+
+
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
-MKL_NUM_THREADS = 8
-OPENBLAS_NUM_THREADS = 8
-OMP_NUM_THREADS = 8
+const MKL_NUM_THREADS = 8
+const OPENBLAS_NUM_THREADS = 8
+const OMP_NUM_THREADS = 8
 
 
-# Monitor the number of threads used by BLAS and LAPACK
-@show BLAS.get_config()
-@show BLAS.get_num_threads()
-
-
-const Nx_unit = 6
-const Ny_unit = 4
-const Nx = 2 * Nx_unit
-const Ny = Ny_unit
-const N = Nx * Ny
-const number_of_bonds = 6 * Nx - 4
-const number_of_wedges = 3 * N - 4 * Ny
-
-# Timing and profiling
+# Timer for performance profiling
 const time_machine = TimerOutput()
 
 
+# Function to set up the simulation parameters for the Hamiltonian
+function get_simulation_params()
+  return (
+    Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
+    kappa=-0.4,                   # Three-spin interaction strength
+    t=0,                          # Electron hopping amplitude   
+    P=-10.0,                      # Edge chemical potential to confine the hole in the bulk
+    string_potential=0.0032,      # String potential strength to prevent the skewness of electron density
+    λ₁=256.0, λ₂=-256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
+  )
+end
+
+
 let
-  # Set up the parameters in the Hamiltonian
-  Jx, Jy, Jz = 1.0, 1.0, 1.0        # Two-body anisotropic Kitaev interaction strength 
-  kappa=-0.4                        # Three-spin interaction strength
-  t=0.1                             # Electron hopping amplitude
-  P=-10.0                           # Chemical potential on the edges of the cylinder
-  string_potential=0.0032           # Chemical potential in the bulk to prevent the skewnesss of electron density
-  λ₁, λ₂ = 256.0, -256.0            # Perturbation strengths for the loop operators on both edges of the cylinder
+  # Set up the parameters in the Hamiltonian using the helper function
+  params = get_simulation_params()
+  Jx, Jy, Jz = params.Jx, params.Jy, params.Jz
+  kappa = params.kappa
+  t = params.t
+  P = params.P
+  string_potential = params.string_potential
+  λ₁, λ₂ = params.λ₁, params.λ₂
+  
+
   println(repeat("#", 200))
-  println("# Parameters simulated in the Hamiltonian #")
-  @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
+  println("Running DMRG simulations for the 2D Kitaev model on a honeycomb lattice using MPS wave ansatz")
   println(repeat("#", 200))
 
+  
+  # Display the parameters used in the Hamiltonian
+  println("\nParameters used to set up the Hamiltonian:")
+  @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
+  
+  
+  # BLAS/LAPACK Configuration and Thread Monitoring
+  println("\nBLAS Configuration:")
+  println("\nConfigurations: ", BLAS.get_config())
+  println("\nNumber of threads: ", BLAS.get_num_threads())
+  
+  
 
   # honeycomb lattice implemented in the ring ordering scheme
   x_periodic = false
@@ -60,7 +87,7 @@ let
 
   
   # Construct a honeycomb lattice using armchair geometry
-  # TO-DO: Implement the armchair geometery with periodic boundary condition
+  # TO-DO: Implement the armchair geometery with periodic boundary condition in the x direction
   if x_periodic
     lattice = honeycomb_lattice_rings_pbc(Nx, Ny; yperiodic=true)
     # @show length(lattice)
@@ -85,6 +112,7 @@ let
   edge_sites = Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)
   # @show length(edge_sites), edge_sites  
 
+  
   #***************************************************************************************************************
   #***************************************************************************************************************  
   # Construct the Hamiltonian using OpSum
@@ -145,12 +173,12 @@ let
       if (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
         os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
-        @info "Added three-spin interaction" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+        # @info "Added three-spin interaction" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
       elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
         # os .+= kappa, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
         os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
         os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
-        @info "Added three-spin interaction" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        # @info "Added three-spin interaction" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
       end
       edge_counts["horizontal"] += 1
     end
@@ -161,11 +189,11 @@ let
       if (y_coordinate == 1 && w.s3 < w.s2) || (y_coordinate == Ny && w.s2 < w.s3)
         os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
         os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
       elseif (y_coordinate == 1 && w.s2 < w.s3) || (y_coordinate == Ny && w.s3 < w.s2)
         os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
         os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
       end
       edge_counts["vertical"] += 1
     end
@@ -177,21 +205,21 @@ let
         if w.s2 > w.s3
           os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
           os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
         else
           os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
           os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
         end
       elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
         if w.s2 > w.s3
           os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
           os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
         else
           os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
           os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
         end
       end
       edge_counts["vertical"] += 1
@@ -203,7 +231,7 @@ let
   if total_edges != number_of_wedges
     error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
   end
-  @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
+  # @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
 
 
   # Set up the edge chemical potential walls to confine the hole in the bulk of the cylinder
@@ -221,7 +249,7 @@ let
     # Add the string potential term for each site in the lattice; the potenrial is a function of x coordinate
     for site in 1:N
       xcoordinate = div(site - 1, Ny) + 1
-      os .+= string_potential * (xcoordinate - reference), "Ntot", site
+      os .+= string_potential * (xcoordinate - reference) * sign(λ₁), "Ntot", site
       @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference)
     end
   end
@@ -253,40 +281,41 @@ let
     @show idx, loop_indices[idx, :]
   end
   
+  
   loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]
   @show loops_signs
   println("")
   println("")
 
-  # if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
-  #   for idx in 1 : 3
-  #     @show "Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)"
+  if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
+    for idx in 1 : 3
+      println("Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)")
 
-  #     for idx_op in 1 : 16
-  #       operator = loop_operator[idx_op]
+      for idx_op in 1 : 16
+        operator = loop_operator[idx_op]
 
-  #       os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
-  #         operator[1], loop_indices[idx, 1], 
-  #         operator[2], loop_indices[idx, 2], 
-  #         operator[3], loop_indices[idx, 3], 
-  #         operator[4], loop_indices[idx, 4], 
-  #         operator[5], loop_indices[idx, 5], 
-  #         operator[6], loop_indices[idx, 6],
-  #         operator[7], loop_indices[idx, 7],
-  #         operator[8], loop_indices[idx, 8]
+        os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
+          operator[1], loop_indices[idx, 1], 
+          operator[2], loop_indices[idx, 2], 
+          operator[3], loop_indices[idx, 3], 
+          operator[4], loop_indices[idx, 4], 
+          operator[5], loop_indices[idx, 5], 
+          operator[6], loop_indices[idx, 6],
+          operator[7], loop_indices[idx, 7],
+          operator[8], loop_indices[idx, 8]
 
-  #       os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
-  #         operator[1], loop_indices[nloops - idx + 1, 1], 
-  #         operator[2], loop_indices[nloops - idx + 1, 2], 
-  #         operator[3], loop_indices[nloops - idx + 1, 3], 
-  #         operator[4], loop_indices[nloops - idx + 1, 4], 
-  #         operator[5], loop_indices[nloops - idx + 1, 5], 
-  #         operator[6], loop_indices[nloops - idx + 1, 6],
-  #         operator[7], loop_indices[nloops - idx + 1, 7],
-  #         operator[8], loop_indices[nloops - idx + 1, 8]
-  #     end
-  #   end
-  # end
+        os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
+          operator[1], loop_indices[nloops - idx + 1, 1], 
+          operator[2], loop_indices[nloops - idx + 1, 2], 
+          operator[3], loop_indices[nloops - idx + 1, 3], 
+          operator[4], loop_indices[nloops - idx + 1, 4], 
+          operator[5], loop_indices[nloops - idx + 1, 5], 
+          operator[6], loop_indices[nloops - idx + 1, 6],
+          operator[7], loop_indices[nloops - idx + 1, 7],
+          operator[8], loop_indices[nloops - idx + 1, 8]
+      end
+    end
+  end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
@@ -301,11 +330,11 @@ let
   state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
   state[div(N, 2)] = "Emp"  # Doping one hole in the system
   
-  println(repeat("#", 200))
-  println("Initial state used in DMRG simulation:")
+  # println(repeat("#", 200))
+  println("\nInitial state used in DMRG simulation:")
   @show state
-  println(repeat("#", 200))
-  println("")
+  # println(repeat("#", 200))
+  # println("")
 
   if count(==("Emp"), state) != 1
     error("The system is not proper doped with one hole!")
@@ -327,6 +356,7 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
+  
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Measure local observables (one-point functions) before starting the DMRG simulation
@@ -336,14 +366,15 @@ let
   Sy₀ = -0.5im * (Splus₀ - Sminus₀)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
 
+  
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
   if abs(N - sum(n₀) - 1) > 1e-8
     error("The initial state does not have the correct number of electrons!")
   end
-  println(repeat("#", 200))
-  println("Initial electron density before running DMRG:")
-  println("n₀ = $sum(n₀)")
-  println(repeat("#", 200))
+  
+
+  println("\nInitial electron density before running DMRG:")
+  println("n₀ = $(sum(n₀))")
   println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -366,27 +397,28 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Measure local observables (one-point functions) after finish the DMRG simulation
+  # Measure local observables based on the optimized ground state wave function
   @timeit time_machine "one-point functions" begin
+    # Measure electron density based on the optimized wave function
+    # Throw an error if the optimized wave function does not have the correct number of electrons
+    n = expect(ψ, "Ntot", sites = 1 : N)
+    if abs(N - sum(n) - count(==("Emp"), state)) > 1e-8
+      error("The optimized state does not have the correct number of electrons!")
+    end
+    println("\nElectron density computed based on the optimized wave function: ")
+    println("n = $n")
+    println("")
+
+    # Measure local spin observables
     Sx = expect(ψ, "Sx", sites = 1 : N)
     Splus = expect(ψ, "S+", sites = 1 : N)
     Sminus = expect(ψ, "S-", sites = 1 : N)
     Sy = -0.5im * (Splus - Sminus)
     Sz = expect(ψ, "Sz", sites = 1 : N)
-    
-    n = expect(ψ, "Ntot", sites = 1 : N)
-    # if abs(N - sum(n) - 1) > 1e-8
-    #   error("The optimized state does not have the correct number of electrons!")
-    # end
-    println(repeat("#", 200))
-    println("Electron density computed based on the optimized wavefunction: ")
-    println("n = $n")
-    println(repeat("#", 200))
   end
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
-  
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -402,6 +434,7 @@ let
   end
   #***************************************************************************************************************
   #***************************************************************************************************************
+  
   
   
   #***************************************************************************************************************
@@ -458,6 +491,7 @@ let
   #*************************************************************************************************************** 
 
  
+  
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Compute the expectation values of loop operators along the periodic direction of the cylinder
@@ -494,10 +528,10 @@ let
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Compute the eigenvalues of the order parameters near vacancies
+  # Compute the order parameters based on twelve-point correlation functions
   @timeit time_machine "twelve-point correlator(s)" begin
     centers = collect((2 * Ny + 1):(N - 2 * Ny))
-    @info "Central sites selected for measurement" centers=centers
+    # @info "Central sites selected for measurement" centers=centers
 
     order_loops = []
     for center in centers
@@ -707,7 +741,6 @@ let
   #*************************************************************************************************************** 
 
 
-
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Check the variance of the energy based on the optimized ground state wavefunction
@@ -723,10 +756,11 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Print out the values of various physical quantities measured
-  println(repeat("#", 100))
-  println(repeat("#", 100))
-  println("Output data for the entire simulation:")
+  println(repeat("#", 200))
+  println(repeat("#", 200))
+  println("\nOutput data for the entire simulation:")
 
+  
   println("")
   println("Visualize the optimization history of the energy and bond dimensions:")
   @show custom_observer.ehistory_full
@@ -765,8 +799,9 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
-  # @show time_machine
-  # h5open("data/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5", "w") do file
+  @show time_machine
+  output_filename = "data/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5"
+  # h5open(output_filename, "w") do file
   #   write(file, "psi", ψ)
   #   write(file, "NormalizedE0", energy / number_of_bonds)
   #   write(file, "E0", energy)
