@@ -12,11 +12,11 @@ using TimerOutputs
 using Random
 
 
-include("updated/HoneycombLattice.jl")
-include("updated/Entanglement.jl")
-include("updated/TopologicalLoops.jl")
-include("updated/CustomObserver.jl")
-include("updated/kitaev_hamiltonian.jl")
+include("HoneycombLattice.jl")
+include("Entanglement.jl")
+include("TopologicalLoops.jl")
+include("CustomObserver.jl")
+include("kitaev_hamiltonian.jl")
 
 
 # System geometry parameters
@@ -47,7 +47,7 @@ function get_simulation_params()
   return (
     Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
     kappa=-0.4,                   # Three-spin interaction strength
-    t=0.0,                        # Electron hopping amplitude   
+    t=0.0,                          # Electron hopping amplitude   
     P=-10.0,                      # Edge chemical potential to confine the hole in the bulk
     string_potential=0.0032,      # String potential strength to prevent the skewness of electron density
     λ₁=256.0, λ₂=-256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
@@ -116,49 +116,10 @@ let
   # Construct the Hamiltonian using OpSum
   os = OpSum()
 
-  # Initialize a dictionary to count the number of each type of bond
-  bond_counts = Dict("xbond" => 0, "ybond" => 0, "zbond" => 0)
-  
-  # Construct the two-body interaction terms in the Kitaev Hamiltonian
-  for b in lattice
-    # Set up the electron hopping terms
-    os .+= -t, "Cdagup", b.s1, "Cup", b.s2
-    os .+= -t, "Cdagup", b.s2, "Cup", b.s1
-    os .+= -t, "Cdagdn", b.s1, "Cdn", b.s2
-    os .+= -t, "Cdagdn", b.s2, "Cdn", b.s1
+  # Set up two-body interaction terms used  in the Kitaev Hamiltonian
+  os = construct_two_body_interactions(os, lattice, t, Jx, Jy, Jz, Ny)
 
-    # Set up the anisotropic two-body Kitaev interaction terms
-    x_coordinate = div(b.s1 - 1, Ny) + 1
-    
-    # Set up the Sz-Sz bond interaction 
-    if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
-      os .+= -Jz, "Sz", b.s1, "Sz", b.s2
-      bond_counts["zbond"] += 1
-      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
-    end
-
-    # Set up the Sx-Sx and Sy-Sy bond interactions
-    if (isodd(x_coordinate) && isodd(b.s1) && isodd(b.s2)) || (iseven(x_coordinate) && iseven(b.s1) && iseven(b.s2))
-      os .+= -Jx, "Sx", b.s1, "Sx", b.s2
-      bond_counts["xbond"] += 1
-      @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
-    elseif (isodd(x_coordinate) && iseven(b.s1) && iseven(b.s2)) || (iseven(x_coordinate) && isodd(b.s1) && isodd(b.s2))
-      os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
-      os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
-      os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
-      os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
-      bond_counts["ybond"] += 1
-      @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
-    end
-  end
-  
-  total_bonds = bond_counts["xbond"] + bond_counts["ybond"] + bond_counts["zbond"]
-  if total_bonds != number_of_bonds
-    error("Mismatch in the number of bonds: expected $number_of_bonds, but found $total_bonds.")
-  end
-  @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
-
-
+  @show typeof(wedge)
   # Set up the three-spin interaction terms in the Kitaev Hamiltonian
   edge_counts = Dict("horizontal" => 0, "vertical" => 0)
   for w in wedge
