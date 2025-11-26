@@ -8,7 +8,7 @@ include("HoneycombLattice.jl")
 include("TopologicalLoops.jl")
 
 # Function to construct the two-body interaction terms in the Kitaev Hamiltonian
-function construct_two_body_interactions(input_os, input_lattice::Vector{LatticeBond},
+function construct_two_body_interaction(input_os, input_lattice::Vector{LatticeBond},
     hopping::Float64, Jx::Float64, Jy::Float64, Jz::Float64, input_Ny::Int, input_bonds::Int)
     
     
@@ -64,8 +64,9 @@ end
 
 
 # Function to construc the three-spin interaction terms in the Kitaev Hamiltonian
-function construct_three_spin_interaction(input_os, input_wedge::Vector{WedgeBond}, input_Nx::Int, input_Ny::Int, 
-    input_kappa::Float64)
+function construct_three_spin_interaction(input_os, input_wedge::Vector{WedgeBond}, 
+    input_kappa::Float64, input_Ny::Int, input_wedges::Int)
+    
     
     # Initialize a dictionary to count the number of each type of edge
     edge_counts = Dict("horizontal" => 0, "vertical" => 0)
@@ -75,6 +76,7 @@ function construct_three_spin_interaction(input_os, input_wedge::Vector{WedgeBon
     for w in input_wedge
         x_coordinate = div(w.s2 - 1, input_Ny) + 1
         y_coordinate = mod(w.s2 - 1, input_Ny) + 1    
+        
         
         # Set up the horizontal three-spin interaction terms
         if abs(w.s1 - w.s2) == abs(w.s2 - w.s3) == input_Ny
@@ -134,9 +136,55 @@ function construct_three_spin_interaction(input_os, input_wedge::Vector{WedgeBon
         end
     end
 
-
+    # Check the total number of edges added; throw an error if there is a mismatch
     if (edge_counts["horizontal"] + edge_counts["vertical"]) != number_of_wedges
-    error("Mismatch in the number of wedges: expected $number_of_wedges, but found $(edge_counts["horizontal"] + edge_counts["vertical"]).")
+        error("Mismatch in the number of wedges: expected $number_of_wedges, but found $(edge_counts["horizontal"] + edge_counts["vertical"]).")
     end
     # @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
+
+
+    return input_os
+end
+
+
+
+
+"""
+    Set up an edge potential wall to confine the hole in the bulk of the cylinder
+"""
+
+function construct_edge_potential(input_os, input_edge_sites::Set{Int64}, 
+    input_potential::Float64)
+    if isempty(input_edge_sites) || isapprox(input_potential, 0; atol=1e-8)
+        return input_os
+    end
+
+    for site in input_edge_sites
+        input_os .+= input_potential, "Ntot", site
+        @info "Added chemical potential wall on edges" site=site potential=input_potential
+    end
+
+    return input_os
+end
+
+
+
+"""
+    Set up a string potential in the bulk to prevent the skewness of electron density
+"""
+
+function construct_string_potential(input_os, lambda1::Float64, lambda2::Float64, 
+    input_string_potential::Float64, input_Nx::Int, input_Ny::Int, input_total_sites::Int)
+    
+    if abs(input_string_potential) > 1e-8 && sign(lambda1) != sign(lambda2)
+        reference = div(input_Nx, 2) + 0.5
+        # Add a string potential term for each site in the lattice, as a function of x coordinate
+        for site in 1:input_total_sites
+            xcoordinate = div(site - 1, input_Ny) + 1
+            input_os .+= input_string_potential * (xcoordinate - reference) * sign(lambda1), "Ntot", site
+            @info "Added string potential" site=site potential=input_string_potential * (xcoordinate - reference)
+        end
+    end
+    
+    return input_os
 end

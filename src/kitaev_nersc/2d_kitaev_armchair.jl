@@ -2,7 +2,6 @@
 # Simulating the Kitaev model on a 2D honeycomb lattice with armchair geometry using DMRG
 # Introducing loop perturbations on both edges of the cylinder
 
-
 using ITensors
 using ITensorMPS
 using HDF5
@@ -67,7 +66,7 @@ let
   
 
   println(repeat("#", 200))
-  println("Running DMRG simulations for the 2D Kitaev model on a honeycomb lattice using MPS wave ansatz")
+  println("Running DMRG simulation to obtain the ground state of the Kitaev model")
   println(repeat("#", 200))
 
   
@@ -76,10 +75,10 @@ let
   @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
   
   
-  # BLAS/LAPACK Configuration and Thread Monitoring
-  println("\nBLAS Configuration:")
-  println("\nConfigurations: ", BLAS.get_config())
-  println("\nNumber of threads: ", BLAS.get_num_threads())
+  # # BLAS/LAPACK Configuration and Thread Monitoring
+  # println("\nBLAS Configuration:")
+  # println("\nConfigurations: ", BLAS.get_config())
+  # println("\nNumber of threads: ", BLAS.get_num_threads())
   
 
   # Set up the lattice geometry and boundary conditions
@@ -111,15 +110,22 @@ let
   # @show length(edge_sites), edge_sites  
 
   
+  
   #***************************************************************************************************************
-  #***************************************************************************************************************  
-  # Construct the Hamiltonian using OpSum
+  # Construct the Hamiltonian as an MPO
+  #*************************************************************************************************************** 
+  
   os = OpSum()
+
+  """
+    Construct the two-body interaction terms in the Kitaev Hamiltonian
+  """
+  println(repeat("#", 200)) 
+  println("\nSetting up the two-body interaction terms in the Kitaev Hamiltonian:")
 
   # Initialize a dictionary to count the number of each type of bond
   bond_counts = Dict("xbond" => 0, "ybond" => 0, "zbond" => 0)
   
-  # Construct the two-body interaction terms in the Kitaev Hamiltonian
   for b in lattice
     # Set up the electron hopping terms
     os .+= -t, "Cdagup", b.s1, "Cup", b.s2
@@ -134,32 +140,38 @@ let
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       bond_counts["zbond"] += 1
-      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
+      # @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     end
 
     # Set up the Sx-Sx and Sy-Sy bond interactions
     if (isodd(x_coordinate) && isodd(b.s1) && isodd(b.s2)) || (iseven(x_coordinate) && iseven(b.s1) && iseven(b.s2))
       os .+= -Jx, "Sx", b.s1, "Sx", b.s2
       bond_counts["xbond"] += 1
-      @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+      # @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
     elseif (isodd(x_coordinate) && iseven(b.s1) && iseven(b.s2)) || (iseven(x_coordinate) && isodd(b.s1) && isodd(b.s2))
       os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
       os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
       bond_counts["ybond"] += 1
-      @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+      # @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
     end
   end
   
+
+  # Verify the total number of bonds added to the Hamiltonian
   total_bonds = bond_counts["xbond"] + bond_counts["ybond"] + bond_counts["zbond"]
   if total_bonds != number_of_bonds
     error("Mismatch in the number of bonds: expected $number_of_bonds, but found $total_bonds.")
   end
   @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
+  println(repeat("#", 200))
+  #*************************************************************************************************************** 
 
 
-  # Set up the three-spin interaction terms in the Kitaev Hamiltonian
+  """
+    Construct the three-spin interaction terms in the Kitaev Hamiltonian
+  """
   edge_counts = Dict("horizontal" => 0, "vertical" => 0)
   for w in wedge
     # @show w.s1, w.s2, w.s3
@@ -230,30 +242,47 @@ let
     error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
   end
   # @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
-
-
-  # Set up the edge chemical potential walls to confine the hole in the bulk of the cylinder
-  if abs(P) > 1e-8
-    for site in edge_sites
-      os .+= P, "Ntot", site
-      @info "Added chemical potential wall on edges" site=site potential=P
-    end
-  end
+  #*************************************************************************************************************** 
 
   
-  # Set up the string potential in the bulk to prevent the skewness of electron density
+  """
+    Add an edge chemical potential to confine the hole in the bulk of the cylinder
+  """
+  if abs(P) > 1e-8
+    # println("")
+    # println(repeat("#", 200))
+    # println("Adding chemical potential walls on the edges to confine the hole in the bulk")
+
+    for site in edge_sites
+      os .+= P, "Ntot", site
+      # @info "Added chemical potential wall on edges" site=site potential=P
+    end
+  end
+  # println(repeat("#", 200))
+  
+  
+  """
+    Add a string potential in the bulk to prevent the skewness of electron density; the potential is a function of x coordinate
+  """
   if abs(string_potential) > 1e-8 && sign(λ₁) != sign(λ₂)
+    println("")
+    println(repeat("#", 200))
+    println("Adding string potential in the bulk to prevent the skewness of electron density")
+    
     reference = div(Nx, 2) + 0.5
-    # Add the string potential term for each site in the lattice; the potenrial is a function of x coordinate
     for site in 1:N
       xcoordinate = div(site - 1, Ny) + 1
       os .+= string_potential * (xcoordinate - reference) * sign(λ₁), "Ntot", site
-      @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference)
+      @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference) * sign(λ₁)
     end
   end
+  println(repeat("#", 200))
+  #***************************************************************************************************************
 
   
-  # Set up loop operators along the periodic direction of the cylinder
+  """
+    Add loop operators along the periodic direction of the cylinder to access different topological sectors
+  """
   # loop_operator = ["iSy", "Sx", "iSy", "Sx", "iSy", "Sx", "iSy", "Sx"]  # Hard-coded for width-4 cylinders
   loop_operator = [
     ["S+", "Sx", "S+", "Sx", "S+", "Sx", "S+", "Sx"],
@@ -278,7 +307,6 @@ let
   for idx in 1 : nloops
     @show idx, loop_indices[idx, :]
   end
-  
   
   loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]
   # @show loops_signs
@@ -313,7 +341,6 @@ let
     end
   end
   #***************************************************************************************************************
-  #*************************************************************************************************************** 
 
 
   #***************************************************************************************************************
