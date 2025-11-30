@@ -54,6 +54,11 @@ function get_simulation_params()
 end
 
 
+function configure_signs(input_string)
+  return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+end
+
+
 let
   # Set up the parameters in the Hamiltonian using the helper function
   params = get_simulation_params()
@@ -311,13 +316,17 @@ let
   loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")
   nloops, loop_size = size(loop_indices)
 
-  nloops > 0 || error("No loop indices returned for the current geometry.")
-  loop_size == 8 || error("Each loop must span 8 sites, but found $loop_size.")
-
-  for (idx, loop) in enumerate(eachrow(loop_indices))
-    @info "Loop index" idx collect(loop)
+  if nloops <= 0
+    error("No loop indices set up for the given simulation cell.")
   end
   
+  if loop_size != 2 * Ny 
+    error("Each loop must span $(2 * Ny) sites, but found $loop_size.")
+  end
+
+  # for (idx, loop) in enumerate(eachrow(loop_indices))
+  #   @info "Loop index" idx collect(loop)
+  # end
   
   # Add the loop perturbation terms to the Hamiltonian
   if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
@@ -338,15 +347,16 @@ let
 
 
         # Add loop perturbation term on the right edge
+        right_idx = nloops - idx + 1
         os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
-          operator[1], loop_indices[nloops - idx + 1, 1], 
-          operator[2], loop_indices[nloops - idx + 1, 2], 
-          operator[3], loop_indices[nloops - idx + 1, 3], 
-          operator[4], loop_indices[nloops - idx + 1, 4], 
-          operator[5], loop_indices[nloops - idx + 1, 5], 
-          operator[6], loop_indices[nloops - idx + 1, 6],
-          operator[7], loop_indices[nloops - idx + 1, 7],
-          operator[8], loop_indices[nloops - idx + 1, 8]
+          operator[1], loop_indices[right_idx, 1], 
+          operator[2], loop_indices[right_idx, 2], 
+          operator[3], loop_indices[right_idx, 3], 
+          operator[4], loop_indices[right_idx, 4], 
+          operator[5], loop_indices[right_idx, 5], 
+          operator[6], loop_indices[right_idx, 6],
+          operator[7], loop_indices[right_idx, 7],
+          operator[8], loop_indices[right_idx, 8]
       end
     end
   end
@@ -390,7 +400,9 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Measure local observables before starting the DMRG simulation
+  """
+    Measure local observables before starting the DMRG simulation
+  """
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Splus₀ = expect(ψ₀, "S+", sites = 1 : N)
   Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
@@ -465,7 +477,6 @@ let
   #***************************************************************************************************************
   
   
-  
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Set up plaquette operators for each hexagonal plaquette
@@ -482,8 +493,7 @@ let
     @show idx, plaquette_indices[idx, :]
   end
   plaquette_signs = [(-1.0)^count(==("S-"), plaq) for plaq in plaquette]
-  @show plaquette_signs
-  println("")
+  # @show plaquette_signs
   println("")
 
 
@@ -516,6 +526,9 @@ let
     end
   end
   @show plaquette_vals
+  println(repeat("#", 200))
+  println(repeat("#", 200))
+  println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
@@ -688,27 +701,64 @@ let
       @show centers[idx], order_loops[idx]
     end
 
-    function configure_signs(input_string)
-      return [(-1.0)^count(==( "S-" ), row) for row in input_string]
-    end
     
-    # order_loop = Vector{String}(["Z", "Y", "Y", "Y", "X", "Z", "Z", "Z", "Y", "X", "X", "X"])
-    order_string = [["Sz", "S+", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S+", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S+", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S+", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S-", "S+", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
-      ["Sz", "S-", "S-", "S-", "Sz", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+    order_string = Vector{String}(["Sz", "Sy", "Sy", "Sy", "Sx", "Sz", "Sz", "Sz", "Sy", "Sx", "Sx", "Sx"])
+    tmp_order_parameter = zeros(Float64, length(centers))
+    tmp_order₀ = zeros(Float64, length(centers))
+    for idx1 in eachindex(order_loops)
+      loop = order_loops[idx1]
+      
+      os_order = OpSum()
+      os_order +=  "Ntot", centers[idx1], 
+        order_string[1], loop[1], 
+        order_string[2], loop[2], 
+        order_string[3], loop[3], 
+        order_string[4], loop[4], 
+        order_string[5], loop[5], 
+        order_string[6], loop[6],
+        order_string[7], loop[7],
+        order_string[8], loop[8],
+        order_string[9], loop[9],
+        order_string[10], loop[10],
+        order_string[11], loop[11],
+        order_string[12], loop[12]
+      W_order = MPO(os_order, sites)
+
+      os_order_identity = OpSum()
+      os_order_identity += order_string[1], loop[1], 
+        order_string[2], loop[2], 
+        order_string[3], loop[3], 
+        order_string[4], loop[4], 
+        order_string[5], loop[5], 
+        order_string[6], loop[6],
+        order_string[7], loop[7],
+        order_string[8], loop[8],
+        order_string[9], loop[9],
+        order_string[10], loop[10],
+        order_string[11], loop[11],
+        order_string[12], loop[12]
+      W_order_identity = MPO(os_order_identity, sites)
+
+      tmp_order_parameter[idx1] += 2^12 * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
+      tmp_order₀[idx1] += 2^12 * real(inner(ψ', W_order, ψ))
+    end
+
+    order_string = [["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
+      ["Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-", "Sx", "Sx", "Sx"],
     ]
 
     order_signs = configure_signs(order_string)
@@ -722,14 +772,10 @@ let
 
     for idx1 in eachindex(order_loops)
       loop = order_loops[idx1]
-      # println("")
-      # @show idx1, loop
-      # println("")
+      
       for idx2 in eachindex(order_string)
         operator = order_string[idx2]
-        # println("")
-        # @show idx2, operator
-        # println("")
+
         os_order = OpSum()
         os_order +=  "Ntot", centers[idx1], 
           operator[1], loop[1], 
@@ -766,6 +812,15 @@ let
       end
     end
   end
+
+  println("Order parameters computed:")
+  @show tmp_order_parameter 
+  @show order_parameter
+  
+  @show tmp_order₀
+  @show order₀  
+  println(repeat("#", 200))
+  println(repeat("#", 200))
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
