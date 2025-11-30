@@ -111,10 +111,10 @@ let
 
   
   
+  
   #***************************************************************************************************************
   # Construct the Hamiltonian as an MPO
   #*************************************************************************************************************** 
-  
   os = OpSum()
 
   """
@@ -279,7 +279,9 @@ let
   println(repeat("#", 200))
   #***************************************************************************************************************
 
-  
+
+  #***************************************************************************************************************
+  #*************************************************************************************************************** 
   """
     Add loop operators along the periodic direction of the cylinder to access different topological sectors
   """
@@ -302,22 +304,28 @@ let
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S+", "Sx"],
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
   ]
-  loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")  
-  nloops = size(loop_indices, 1)
-  for idx in 1 : nloops
-    @show idx, loop_indices[idx, :]
+  loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]  
+
+  
+  # Generate the list of loop indices along the periodic direction of the cylinder
+  loop_indices = LoopListArmchair(Nx_unit, Ny_unit, "armchair", "y")
+  nloops, loop_size = size(loop_indices)
+
+  nloops > 0 || error("No loop indices returned for the current geometry.")
+  loop_size == 8 || error("Each loop must span 8 sites, but found $loop_size.")
+
+  for (idx, loop) in enumerate(eachrow(loop_indices))
+    @info "Loop index" idx collect(loop)
   end
   
-  loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]
-  # @show loops_signs
- 
+  
+  # Add the loop perturbation terms to the Hamiltonian
   if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
     for idx in 1 : 3
-      # println("Adding loop perturbation terms for loop index: $idx, $(nloops - idx + 1)")
-
       for idx_op in 1 : 16
         operator = loop_operator[idx_op]
 
+        # Add loop perturbation term on the left edge
         os .+= -1.0/16 * λ₁ * loops_signs[idx_op], 
           operator[1], loop_indices[idx, 1], 
           operator[2], loop_indices[idx, 2], 
@@ -328,6 +336,8 @@ let
           operator[7], loop_indices[idx, 7],
           operator[8], loop_indices[idx, 8]
 
+
+        # Add loop perturbation term on the right edge
         os .+= -1.0/16 * λ₂ * loops_signs[idx_op], 
           operator[1], loop_indices[nloops - idx + 1, 1], 
           operator[2], loop_indices[nloops - idx + 1, 2], 
@@ -345,12 +355,12 @@ let
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
+  # Set up the Hamiltonian as an MPO  
   sites = siteinds("tJ", N; conserve_nf=true)
   H = MPO(os, sites)
 
   
-  # Initialize the wave function as a random MPS with one hole doped in the system
+  # Set up the iniital MPS with one hole doepd in the system
   state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
   state[div(N, 2)] = "Emp"  # Doping one hole in the middle of the cylinder
   if count(==("Emp"), state) != 1
@@ -360,16 +370,16 @@ let
   @show state
  
   
-  # Initialize a random MPS as the starting wavefunction for DMRG
+  # Set up the initial MPS as a random MPS 
   Random.seed!(123)
   ψ₀ = randomMPS(sites, state, 8)
   
   
   # Set up the parameters used in the DMRG simulation including bond dimension and cutoff errors
   nsweeps = 1
-  maxdim  = [20, 100, 200, 800, 1000]
+  maxdim  = [20, 100, 200, 800, 1500]
   cutoff  = [1E-10]
-  eigsolve_krylovdim = 50
+  eigsolve_krylovdim = 50 # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
   
   
   # Add noise terms to prevent DMRG from getting stuck in a local minimum
@@ -380,19 +390,17 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Measure local observables (one-point functions) before starting the DMRG simulation
+  # Measure local observables before starting the DMRG simulation
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Splus₀ = expect(ψ₀, "S+", sites = 1 : N)
   Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
   Sy₀ = -0.5im * (Splus₀ - Sminus₀)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
 
-  
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
   if abs(N - sum(n₀) - 1) > 1e-8
     error("The initial state does not have the correct number of electrons!")
   end
-  
 
   println("\nInitial electron density before running DMRG:")
   println("n₀ = $(sum(n₀))")
