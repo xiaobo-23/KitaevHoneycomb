@@ -89,7 +89,7 @@ let
     println(rpad(label, 6), ": ", value)
   end
   
-  
+
   # # BLAS/LAPACK Configuration and Thread Monitoring
   # println("\nBLAS Configuration:")
   # println("\nConfigurations: ", BLAS.get_config())
@@ -135,7 +135,7 @@ let
     Construct the two-body interaction terms in the Kitaev Hamiltonian
   """
   println("")
-  println(repeat("#", 200)) 
+  println(header) 
   println("Setting up the two-body interaction terms in the Kitaev Hamiltonian:")
 
   # Initialize a dictionary to count the number of each type of bond
@@ -155,21 +155,21 @@ let
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       bond_counts["zbond"] += 1
-      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
+      # @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     end
 
     # Set up the Sx-Sx and Sy-Sy bond interactions
     if (isodd(x_coordinate) && isodd(b.s1) && isodd(b.s2)) || (iseven(x_coordinate) && iseven(b.s1) && iseven(b.s2))
       os .+= -Jx, "Sx", b.s1, "Sx", b.s2
       bond_counts["xbond"] += 1
-      @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+      # @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
     elseif (isodd(x_coordinate) && iseven(b.s1) && iseven(b.s2)) || (iseven(x_coordinate) && isodd(b.s1) && isodd(b.s2))
       os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
       os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
       bond_counts["ybond"] += 1
-      @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+      # @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
     end
   end
   
@@ -180,13 +180,16 @@ let
     error("Mismatch in the number of bonds: expected $number_of_bonds, but found $total_bonds.")
   end
   # @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
-  println(repeat("#", 200))
+  println(header, "\n")
   #*************************************************************************************************************** 
 
 
   """
     Construct the three-spin interaction terms in the Kitaev Hamiltonian
   """
+  println("")
+  println(header) 
+  println("Setting up three-spin interactions in the Kitaev Hamiltonian:")
   edge_counts = Dict("horizontal" => 0, "vertical" => 0)
   for w in wedge
     # @show w.s1, w.s2, w.s3
@@ -198,12 +201,11 @@ let
       if (isodd(x_coordinate) && isodd(y_coordinate)) || (iseven(x_coordinate) && iseven(y_coordinate))
         os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
-        # @info "Added three-spin interaction" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+        @info "Added three-spin interaction" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
       elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
-        # os .+= kappa, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
         os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
         os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
-        # @info "Added three-spin interaction" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        @info "Added three-spin interaction" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
       end
       edge_counts["horizontal"] += 1
     end
@@ -214,11 +216,11 @@ let
       if (y_coordinate == 1 && w.s3 < w.s2) || (y_coordinate == Ny && w.s2 < w.s3)
         os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
         os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-        # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
       elseif (y_coordinate == 1 && w.s2 < w.s3) || (y_coordinate == Ny && w.s3 < w.s2)
         os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
         os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-        # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
       end
       edge_counts["vertical"] += 1
     end
@@ -230,21 +232,21 @@ let
         if w.s2 > w.s3
           os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
           os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
         else
           os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
           os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
         end
       elseif (isodd(x_coordinate) && iseven(y_coordinate)) || (iseven(x_coordinate) && isodd(y_coordinate))
         if w.s2 > w.s3
           os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
           os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
-          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
         else
           os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3 
           os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-          # @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+          @info "Added three-spin interaction" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
         end
       end
       edge_counts["vertical"] += 1
@@ -260,6 +262,10 @@ let
   #*************************************************************************************************************** 
 
   
+
+  #***************************************************************************************************************
+  # Setting up perturbation terms in the Hamiltonian
+  #***************************************************************************************************************
   """
     Add an edge chemical potential to confine the hole in the bulk of the cylinder
   """
@@ -277,11 +283,12 @@ let
   
   
   """
-    Add a string potential in the bulk to prevent the skewness of electron density; the potential is a function of x coordinate
+    Add a string potential in the bulk to prevent the skewness of electron density; 
+    the potential is a function of x coordinate
   """
   if abs(string_potential) > 1e-8 && sign(λ₁) != sign(λ₂)
     println("")
-    println(repeat("#", 200))
+    println(header)
     println("Adding string potential in the bulk to prevent the skewness of electron density")
     
     reference = div(Nx, 2) + 0.5
@@ -291,12 +298,9 @@ let
       @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference) * sign(λ₁)
     end
   end
-  println(repeat("#", 200))
-  #***************************************************************************************************************
+  println(header, "\n")
 
 
-  #***************************************************************************************************************
-  #*************************************************************************************************************** 
   """
     Add loop operators along the periodic direction of the cylinder to access different topological sectors
   """
@@ -320,8 +324,8 @@ let
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
   ]
   loops_signs = configure_signs(loop_operator)
-  # @info "Configured loop operator signs"
-  println(""); @show loops_signs
+  println("") 
+  @show loops_signs
 
   
   # Generate the list of loop indices along the periodic direction of the cylinder
