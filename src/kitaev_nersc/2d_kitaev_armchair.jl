@@ -79,14 +79,15 @@ let
   λ₁, λ₂ = params.λ₁, params.λ₂
   
 
-  println(repeat("#", 200))
+  header = repeat('#', 200)
+  println(header)
   println("Running DMRG simulation to obtain the ground state of the Kitaev model")
-  println(repeat("#", 200))
+  println(header, "\n")
 
-  
-  # Display the parameters used in the Hamiltonian
-  println("\nParameters used to set up the Hamiltonian:")
-  @show Jx, Jy, Jz, kappa, t, P, λ₁, λ₂
+  println("Hamiltonian parameters:")
+  for (label, value) in pairs((; Jx, Jy, Jz, kappa, t, P, λ₁, λ₂))
+    println(rpad(label, 6), ": ", value)
+  end
   
   
   # # BLAS/LAPACK Configuration and Thread Monitoring
@@ -124,18 +125,18 @@ let
   # @show length(edge_sites), edge_sites  
 
   
-  
-  
   #***************************************************************************************************************
   # Construct the Hamiltonian as an MPO
   #*************************************************************************************************************** 
+  
   os = OpSum()
 
   """
     Construct the two-body interaction terms in the Kitaev Hamiltonian
   """
+  println("")
   println(repeat("#", 200)) 
-  println("\nSetting up the two-body interaction terms in the Kitaev Hamiltonian:")
+  println("Setting up the two-body interaction terms in the Kitaev Hamiltonian:")
 
   # Initialize a dictionary to count the number of each type of bond
   bond_counts = Dict("xbond" => 0, "ybond" => 0, "zbond" => 0)
@@ -154,21 +155,21 @@ let
     if abs(b.s1 - b.s2) == 1 || abs(b.s1 - b.s2) == Ny - 1
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       bond_counts["zbond"] += 1
-      # @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
+      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     end
 
     # Set up the Sx-Sx and Sy-Sy bond interactions
     if (isodd(x_coordinate) && isodd(b.s1) && isodd(b.s2)) || (iseven(x_coordinate) && iseven(b.s1) && iseven(b.s2))
       os .+= -Jx, "Sx", b.s1, "Sx", b.s2
       bond_counts["xbond"] += 1
-      # @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+      @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
     elseif (isodd(x_coordinate) && iseven(b.s1) && iseven(b.s2)) || (iseven(x_coordinate) && isodd(b.s1) && isodd(b.s2))
       os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
       os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
       os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
       bond_counts["ybond"] += 1
-      # @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+      @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
     end
   end
   
@@ -178,7 +179,7 @@ let
   if total_bonds != number_of_bonds
     error("Mismatch in the number of bonds: expected $number_of_bonds, but found $total_bonds.")
   end
-  @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
+  # @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
   println(repeat("#", 200))
   #*************************************************************************************************************** 
 
@@ -412,7 +413,7 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   """
-    Measure local observables before starting the DMRG simulation
+    Measure local observables of the initial random MPS before running DMRG simulation
   """
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Splus₀ = expect(ψ₀, "S+", sites = 1 : N)
@@ -449,10 +450,12 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Measure local observables based on the optimized ground state wave function
+  """
+    Measure local observables based on the optimized ground state wavefunction obtained from DMRG simulations
+  """
+
   @timeit time_machine "one-point functions" begin
-    # Measure electron density based on the optimized wave function
-    # Throw an error if the optimized wave function does not have the correct number of electrons
+    # Measure electron density and throw an error if the optimized wave function does not have the correct number of electrons
     n = expect(ψ, "Ntot", sites = 1 : N)
     if abs(N - sum(n) - count(==("Emp"), state)) > 1e-8
       error("The optimized state does not have the correct number of electrons!")
@@ -474,7 +477,10 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Measure two-point correlation functions based on the optimized ground state wavefunction
+  """
+    Measure two-point correlation functions based on the optimized ground state wave function 
+  """
+
   @timeit time_machine "two-point functions" begin
     xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
     yyplusplus = correlation_matrix(ψ, "S+", "S+", sites = 1 : N)
@@ -490,7 +496,11 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Set up plaquette operators for each hexagonal plaquette
+  """
+    Set up plaquette operators for each hexagonal plaquette
+  """
+
+  # Set up plaquette operators and the list indices for each hexagonal plaquette
   # plaquette_operator = ["iSy", "Sz", "Sx", "Sx", "Sz", "iSy"]
   plaquette = [
     ["S+", "Sz", "Sx", "Sx", "Sz", "S+"],
@@ -503,17 +513,15 @@ let
   for idx in 1 : nplaquettes
     @show idx, plaquette_indices[idx, :]
   end
-  plaquette_signs = [(-1.0)^count(==("S-"), plaq) for plaq in plaquette]
+  plaquette_signs = configure_signs(plaquette)
   # @show plaquette_signs
-  println("")
+  # println("")
 
 
   # Compute the expectation values of plaquette operators
-  # normalize!(ψ)
   @timeit time_machine "Plaquette Operators" begin
-    plaquette_vals = zeros(Float64, nplaquettes)
     
-    # Compute the eigenvalues of the plaquette operator
+    plaquette_vals = zeros(Float64, nplaquettes)
     for idx1 in 1 : nplaquettes
       tmp_indices = plaquette_indices[idx1, :]
 
@@ -529,11 +537,8 @@ let
           operator[6], tmp_indices[6]
         W = MPO(os_w, sites)
 
-        plaquette_vals[idx1] += -1.0 * plaquette_signs[idx2] * real(inner(ψ', W, ψ))
+        plaquette_vals[idx1] += -1.0 * 2^6/4 * plaquette_signs[idx2] * real(inner(ψ', W, ψ))
       end
-      
-      # Normalize the eigenvalues of the plaquette operator
-      plaquette_vals[idx1] *= 2^6/4
     end
   end
   @show plaquette_vals
@@ -544,14 +549,15 @@ let
   #*************************************************************************************************************** 
 
  
-  
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Compute the expectation values of loop operators along the periodic direction of the cylinder
+  """
+    Compute the expectation values of loop operators along the periodic direction of the cylinder
+  """
+
   @timeit time_machine "Loop Operators" begin
-    loop_vals = zeros(Float64, nloops)
     
-    # Compute eigenvalues of the loop operators in the direction with PBC.
+    loop_vals = zeros(Float64, nloops)
     for idx1 in 1 : nloops
       tmp_indices = loop_indices[idx1, :]
 
@@ -572,6 +578,7 @@ let
         loop_vals[idx1] += 2^8 * loops_signs[idx2] * real(inner(ψ', W, ψ))
       end
       
+      # Normalize the loop operator expectation values
       loop_vals[idx1] *= 1/16
     end
   end
@@ -581,7 +588,10 @@ let
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Compute the order parameters based on twelve-point correlation functions
+  """
+    Compute twelve-point spin correlation functions as the order parameters for the non-Abelian anyons binding
+  """
+
   @timeit time_machine "twelve-point correlator(s)" begin
     centers, order_loops = OrderParameterLoopListArmchair(N, Ny, "armchair")
     for idx in eachindex(order_loops)
@@ -621,8 +631,8 @@ let
       for idx2 in eachindex(order_string)
         operator = order_string[idx2]
 
-        os_order = OpSum()
-        os_order +=  "Ntot", centers[idx1], 
+        os₁ = OpSum()
+        os₁ +=  "Ntot", centers[idx1], 
           operator[1], loop[1], 
           operator[2], loop[2], 
           operator[3], loop[3], 
@@ -635,10 +645,10 @@ let
           operator[10], loop[10],
           operator[11], loop[11],
           operator[12], loop[12]
-        W_order = MPO(os_order, sites)
+        W_order = MPO(os₁, sites)
 
-        os_order_identity = OpSum()
-        os_order_identity += operator[1], loop[1], 
+        os₂ = OpSum()
+        os₂ += operator[1], loop[1], 
           operator[2], loop[2], 
           operator[3], loop[3], 
           operator[4], loop[4], 
@@ -650,7 +660,7 @@ let
           operator[10], loop[10],
           operator[11], loop[11],
           operator[12], loop[12]
-        W_order_identity = MPO(os_order_identity, sites)
+        W_order_identity = MPO(os₂, sites)
 
         order_parameter[idx1] += (1/2)^4 * 2^12 * order_signs[idx2] * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
         order₀[idx1] += (1/2)^4 * 2^12 * order_signs[idx2] * real(inner(ψ', W_order, ψ))
@@ -702,6 +712,7 @@ let
   # end
 
 
+
   println("Expectation values of order parameters:")
   @show order_parameter
   @show order₀
@@ -716,7 +727,9 @@ let
 
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Check the variance of the energy based on the optimized ground state wavefunction
+  """
+    Compute the variance of the energy 
+  """
   @timeit time_machine "compaute the variance" begin
     H2 = inner(H, ψ, H, ψ)
     E₀ = inner(ψ', H, ψ)
@@ -729,13 +742,9 @@ let
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Print out the values of various physical quantities measured
-  println(repeat("#", 200))
-  println(repeat("#", 200))
-  println("\nOutput data for the entire simulation:")
-
-  
+  println("\nOutput data for the entire simulation:")  
   println("")
-  println("Visualize the optimization history of the energy and bond dimensions:")
+  println("Optimization history of ground-state energy and bond dimensions:")
   @show custom_observer.ehistory_full
   @show custom_observer.ehistory
   @show custom_observer.chi
