@@ -1,5 +1,9 @@
-# Construct a list of loops that have non-trivial topological properties
+# 11/30/2025
+# Construct loops that have non-trivial topological properties
+
+
 using ITensors
+using ITensorMPS
 
 
 function LoopList(input_Nx:: Int, input_Ny:: Int, ordering_scheme:: String, direction:: String)
@@ -211,27 +215,28 @@ function PlaquetteList_RightTwist(input_Nx:: Int, input_Ny:: Int, ordering_schem
     elseif ordering_scheme == "rings" && PBC_in_x == true
        error("Periodic boundary condition in x direction needs to be implemented!")
     end     
-    # @show tmp_list
+    
+
     return tmp_list
 end
 
 
-function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String, x_periodic=false)
-    # '''
-    #     Assume using periodic boundary condition in y direction 
-    #     Implement the list of plaquettes for open boundary condition in x direction
-    #     inputNx: the number of unit cells in the x direction
-    #     inputNy: the number of unit cells in the y direction
-    # '''
 
-    println("")
-    println(repeat("*", 100))
-    println("Generate the list of indices for each plaqutte using armchair geometery")
-    println(repeat("*", 100))
-    println("")
+
+function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String, x_periodic=false)
+    """
+        Assume using periodic boundary condition in y direction 
+        Implement the list of plaquettes for open boundary condition in x direction
+        inputNx: the number of unit cells in the x direction
+        inputNy: the number of unit cells in the y direction
+    """
+
+    # println(repeat("#", 200))
+    # println("Generate the list of indices for each plaqutte using armchair geometery")
+    # println(repeat("#", 200))
     
     if geometery != "armchair"
-        error("Geometery not supported!")
+        error("Simualting the Kitaev model on armchair geometery; input geometery is not supported!")
     end
 
     if geometery == "armchair" && x_periodic == false
@@ -269,29 +274,35 @@ function PlaquetteListArmchair(inputNx:: Int, inputNy:: Int, geometery:: String,
        error("Periodic boundary condition in x direction needs to be implemented!")
     end     
 
-    # @show plaquette
     return plaquette 
 end
 
 
 
-function LoopListArmchair(inputNx:: Int, inputNy:: Int, ordering_geometery:: String, direction:: String)
-    # '''
-    #     Use PBC in the y direction as default
-    #     Nx: the number of unit cells in the x direction
-    #     Ny: the number of unit cells in the y direction
-    # '''
+function LoopListArmchair(inputNx::Int, inputNy::Int, ordering_geometery::String, direction::String)
+    """
+        Assume using periodic boundary condition in y direction
+        Nx: number of unit cells in the x direction
+        Ny: number of unit cells in the y direction
+    """
 
-    println("")
-    println(repeat("*", 100))
+    println(repeat("#", 200))
     println("Generate the list of indices for each loop using armchair geometery")
-    println(repeat("*", 100))
-    println("")
+    println(repeat("#", 200))
 
+
+    # Check the ordering geometery
     if ordering_geometery != "armchair"
-        error("Ordering geometery has not been implemented!")
+        error("Simualting the Kitaev model on armchair geometery; ordering geometery has not been implemented!")
     end
 
+    
+    # Check the direction of the loops
+    if direction != "y"
+        error("Simulating the Kitaev model on armchair geometery; direction of the loops along the x direction has not been implemented!")
+    end
+
+    
     if ordering_geometery == "armchair" && direction == "y"
         loop_list = Matrix{Int64}(undef, inputNx, 2 * inputNy)
         for idx1 in 1 : inputNx
@@ -301,6 +312,5 @@ function LoopListArmchair(inputNx:: Int, inputNy:: Int, ordering_geometery:: Str
         end
     end     
     
-    # @show loop_list
     return loop_list
 end
