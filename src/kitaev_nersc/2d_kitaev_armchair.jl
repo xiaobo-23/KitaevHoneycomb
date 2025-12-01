@@ -15,6 +15,7 @@ include("updated/HoneycombLattice.jl")
 include("updated/Entanglement.jl")
 include("updated/TopologicalLoops.jl")
 include("updated/CustomObserver.jl")
+include("updated/topological_loops_armchair.jl")
 include("updated/kitaev_hamiltonian.jl")
 
 
@@ -43,6 +44,9 @@ const time_machine = TimerOutput()
 
 # Function to set up the simulation parameters for the Hamiltonian
 function get_simulation_params()
+  """
+    Set up the simulations parameters for the Hamiltonian
+  """
   return (
     Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
     kappa=-0.4,                   # Three-spin interaction strength
@@ -54,7 +58,12 @@ function get_simulation_params()
 end
 
 
+# Configure the signs for the loop operators based on the input string
 function configure_signs(input_string)
+  """
+      Configure the signs for the loop operators based on the input string
+      Each "S-" contributes a negative sign to the overall product
+  """
   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
 end
 
@@ -309,7 +318,9 @@ let
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S+", "Sx"],
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
   ]
-  loops_signs = [(-1.0)^count(==("S-"), loop) for loop in loop_operator]  
+  loops_signs = configure_signs(loop_operator)
+  # @info "Configured loop operator signs"
+  println(""); @show loops_signs
 
   
   # Generate the list of loop indices along the periodic direction of the cylinder
@@ -572,175 +583,9 @@ let
   #*************************************************************************************************************** 
   # Compute the order parameters based on twelve-point correlation functions
   @timeit time_machine "twelve-point correlator(s)" begin
-    centers = collect((2 * Ny + 1):(N - 2 * Ny))
-    # @info "Central sites selected for measurement" centers=centers
-
-    order_loops = []
-    for center in centers
-      tmp_x = div(center - 1, Ny) + 1
-      tmp_y = mod(center - 1, Ny) + 1
-      tmp_loop = []
-
-      if isodd(tmp_x)
-        if isodd(tmp_y)
-          if tmp_y == 1
-            tmp₁ = center + Ny - 1
-            tmp₂ = center - 1
-            tmp₃ = center + 2 * Ny - 1
-          else
-            tmp₁ = center - 1
-            tmp₂ = center - Ny - 1
-            tmp₃ = center + Ny - 1
-          end
-
-          append!(tmp_loop, [
-            tmp₁,
-            tmp₂,
-            center - Ny,
-            center - 2 * Ny,
-            center - 2 * Ny + 1,
-            center - Ny + 1,
-            center + 1,
-            center + Ny + 1,
-            center + 2 * Ny + 1,
-            center + 2 * Ny,
-            center + Ny, 
-            tmp₃
-          ])
-        elseif iseven(tmp_y)
-          if tmp_y == Ny
-            tmp₁ = center - Ny + 1
-            tmp₂ = center + 1
-            tmp₃ = center - 2 * Ny + 1
-          else
-            tmp₁ = center + 1
-            tmp₂ = center + Ny + 1
-            tmp₃ = center - Ny + 1
-          end
-
-          append!(tmp_loop, [
-            tmp₁,
-            tmp₂,
-            center + Ny,
-            center + 2 * Ny,
-            center + 2 * Ny - 1,
-            center + Ny - 1,
-            center - 1,
-            center - Ny - 1,
-            center - 2 * Ny - 1,
-            center - 2 * Ny,
-            center - Ny,
-            tmp₃
-          ])
-        end
-      else
-        if isodd(tmp_y)
-          if tmp_y == 1
-            tmp₁ = center + 3 * Ny - 1
-            tmp₂ = center + 2 * Ny - 1
-            tmp₃ = center + Ny - 1
-            tmp₄ = center - 1
-            tmp₅ = center - Ny - 1
-          else
-            tmp₁ = center + 2 * Ny - 1
-            tmp₂ = center + Ny - 1
-            tmp₃ = center - 1
-            tmp₄ = center - Ny - 1
-            tmp₅ = center - 2 * Ny - 1
-          end
-
-          append!(tmp_loop, [
-            center + 1,
-            center + Ny + 1,
-            center + Ny,
-            center + 2 * Ny,
-            tmp₁,
-            tmp₂,
-            tmp₃,
-            tmp₄,
-            tmp₅,
-            center - 2 * Ny,
-            center - Ny,
-            center - Ny + 1
-          ])
-        else
-          if tmp_y == Ny
-            tmp₁ = center - 3 * Ny + 1
-            tmp₂ = center - 2 * Ny + 1
-            tmp₃ = center - Ny + 1
-            tmp₄ = center + 1
-            tmp₅ = center + Ny + 1
-          else
-            tmp₁ = center - 2 * Ny + 1
-            tmp₂ = center - Ny + 1
-            tmp₃ = center + 1
-            tmp₄ = center + Ny + 1
-            tmp₅ = center + 2 * Ny + 1
-          end
-
-          append!(tmp_loop, [
-            center - 1,
-            center - Ny - 1,
-            center - Ny,
-            center - 2 * Ny,
-            tmp₁,
-            tmp₂,
-            tmp₃,
-            tmp₄,
-            tmp₅,
-            center + 2 * Ny,
-            center + Ny,
-            center + Ny - 1
-          ])
-        end
-      end
-      push!(order_loops, tmp_loop)
-    end
-    
+    centers, order_loops = OrderParameterLoopListArmchair(N, Ny, "armchair")
     for idx in eachindex(order_loops)
       @show centers[idx], order_loops[idx]
-    end
-
-    
-    order_string = Vector{String}(["Sz", "Sy", "Sy", "Sy", "Sx", "Sz", "Sz", "Sz", "Sy", "Sx", "Sx", "Sx"])
-    tmp_order_parameter = zeros(Float64, length(centers))
-    tmp_order₀ = zeros(Float64, length(centers))
-    for idx1 in eachindex(order_loops)
-      loop = order_loops[idx1]
-      
-      os_order = OpSum()
-      os_order +=  "Ntot", centers[idx1], 
-        order_string[1], loop[1], 
-        order_string[2], loop[2], 
-        order_string[3], loop[3], 
-        order_string[4], loop[4], 
-        order_string[5], loop[5], 
-        order_string[6], loop[6],
-        order_string[7], loop[7],
-        order_string[8], loop[8],
-        order_string[9], loop[9],
-        order_string[10], loop[10],
-        order_string[11], loop[11],
-        order_string[12], loop[12]
-      W_order = MPO(os_order, sites)
-
-      os_order_identity = OpSum()
-      os_order_identity += order_string[1], loop[1], 
-        order_string[2], loop[2], 
-        order_string[3], loop[3], 
-        order_string[4], loop[4], 
-        order_string[5], loop[5], 
-        order_string[6], loop[6],
-        order_string[7], loop[7],
-        order_string[8], loop[8],
-        order_string[9], loop[9],
-        order_string[10], loop[10],
-        order_string[11], loop[11],
-        order_string[12], loop[12]
-      W_order_identity = MPO(os_order_identity, sites)
-
-      tmp_order_parameter[idx1] += 2^12 * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
-      tmp_order₀[idx1] += 2^12 * real(inner(ψ', W_order, ψ))
     end
 
     order_string = [["Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+", "Sx", "Sx", "Sx"],
@@ -813,12 +658,56 @@ let
     end
   end
 
-  println("Order parameters computed:")
-  @show tmp_order_parameter 
+
+  # # Compute order parameters using Sy operator directly
+  # order_string = Vector{String}(["Sz", "Sy", "Sy", "Sy", "Sx", "Sz", "Sz", "Sz", "Sy", "Sx", "Sx", "Sx"])
+  # alternative_order  = zeros(Float64, length(centers))
+  # alternative_order₀ = zeros(Float64, length(centers))
+  # for idx1 in eachindex(order_loops)
+  #   loop = order_loops[idx1]
+    
+  #   os_order = OpSum()
+  #   os_order +=  "Ntot", centers[idx1], 
+  #     order_string[1], loop[1], 
+  #     order_string[2], loop[2], 
+  #     order_string[3], loop[3], 
+  #     order_string[4], loop[4], 
+  #     order_string[5], loop[5], 
+  #     order_string[6], loop[6],
+  #     order_string[7], loop[7],
+  #     order_string[8], loop[8],
+  #     order_string[9], loop[9],
+  #     order_string[10], loop[10],
+  #     order_string[11], loop[11],
+  #     order_string[12], loop[12]
+  #   W_order = MPO(os_order, sites)
+
+  #   os_order_identity = OpSum()
+  #   os_order_identity += order_string[1], loop[1], 
+  #     order_string[2], loop[2], 
+  #     order_string[3], loop[3], 
+  #     order_string[4], loop[4], 
+  #     order_string[5], loop[5], 
+  #     order_string[6], loop[6],
+  #     order_string[7], loop[7],
+  #     order_string[8], loop[8],
+  #     order_string[9], loop[9],
+  #     order_string[10], loop[10],
+  #     order_string[11], loop[11],
+  #     order_string[12], loop[12]
+  #   W_order_identity = MPO(os_order_identity, sites)
+
+  #   alternative_order[idx1] = 2^12 * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
+  #   alternative_order₀[idx1] = 2^12 * real(inner(ψ', W_order, ψ))
+  # end
+
+
+  println("Expectation values of order parameters:")
   @show order_parameter
+  @show order₀
   
-  @show tmp_order₀
-  @show order₀  
+  # @show alternative_order 
+  # @show alternative_order₀
   println(repeat("#", 200))
   println(repeat("#", 200))
   #***************************************************************************************************************
