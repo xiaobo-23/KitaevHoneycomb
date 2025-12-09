@@ -42,21 +42,6 @@ const OMP_NUM_THREADS = 8
 const time_machine = TimerOutput()
 
 
-# Function to set up the simulation parameters for the Hamiltonian
-function get_simulation_params()
-  """
-    Set up the simulations parameters for the Hamiltonian
-  """
-  return (
-    Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
-    kappa=-0.4,                   # Three-spin interaction strength
-    t=0.0,                        # Electron hopping amplitude   
-    P=-10.0,                      # Edge chemical potential to confine the hole in the bulk
-    string_potential=0.0032,      # String potential strength to prevent the skewness of electron density
-    λ₁=256.0, λ₂=-256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
-  )
-end
-
 
 # Configure the signs for the loop operators based on the input string
 function configure_signs(input_string)
@@ -66,6 +51,25 @@ function configure_signs(input_string)
   """
   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
 end
+
+
+
+
+# Function to set up the simulation parameters for the Hamiltonian
+function get_simulation_params()
+  """
+    Set up the simulations parameters for the Hamiltonian
+  """
+  return (
+    Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
+    kappa=-0.4,                   # Three-spin interaction strength
+    t=0.0,                        # Electron hopping amplitude   
+    P=10.0,                       # Edge chemical potential to confine the hole in the bulk
+    string_potential=0.0032,      # String potential strength to prevent the skewness of electron density
+    λ₁=256.0, λ₂=-256.0           # Perturbation strengths for the loop operators on both edges of the cylinder
+  )
+end
+
 
 
 let
@@ -134,6 +138,7 @@ let
   """
     Construct the two-body interaction terms in the Kitaev Hamiltonian
   """
+
   println("")
   println(header) 
   println("Setting up the two-body interaction terms in the Kitaev Hamiltonian:")
@@ -181,12 +186,12 @@ let
   end
   # @info "Bond counts by type" xbond=bond_counts["xbond"] ybond=bond_counts["ybond"] zbond=bond_counts["zbond"]
   println(header, "\n")
-  #*************************************************************************************************************** 
-
+  
 
   """
     Construct the three-spin interaction terms in the Kitaev Hamiltonian
   """
+
   println("")
   println(header) 
   println("Setting up three-spin interactions in the Kitaev Hamiltonian:")
@@ -259,10 +264,8 @@ let
     error("Mismatch in the number of wedges: expected $number_of_wedges, but found $total_edges.")
   end
   # @info "Wedge counts by type" horizontal=edge_counts["horizontal"] vertical=edge_counts["vertical"]
-  #*************************************************************************************************************** 
 
   
-
   #***************************************************************************************************************
   # Setting up perturbation terms in the Hamiltonian
   #***************************************************************************************************************
@@ -270,16 +273,15 @@ let
     Add an edge chemical potential to confine the hole in the bulk of the cylinder
   """
   if abs(P) > 1e-8
-    # println("")
-    # println(repeat("#", 200))
-    # println("Adding chemical potential walls on the edges to confine the hole in the bulk")
+    println("")
+    println(header)
+    println("Adding chemical potential on both edges to confine the hole in the bulk")
 
     for site in edge_sites
-      os .+= P, "Ntot", site
-      # @info "Added chemical potential wall on edges" site=site potential=P
+      os .+= -abs(P), "Ntot", site
+      # @info "Added chemical potential wall on edges" site=site potential=-abs(P)
     end
   end
-  # println(repeat("#", 200))
   
   
   """
@@ -287,15 +289,14 @@ let
     the potential is a function of x coordinate
   """
   if abs(string_potential) > 1e-8 && sign(λ₁) != sign(λ₂)
-    println("")
     println(header)
     println("Adding string potential in the bulk to prevent the skewness of electron density")
     
     reference = div(Nx, 2) + 0.5
     for site in 1:N
       xcoordinate = div(site - 1, Ny) + 1
-      os .+= string_potential * (xcoordinate - reference) * sign(λ₁), "Ntot", site
-      @info "Added string potential" site=site potential=string_potential * (xcoordinate - reference) * sign(λ₁)
+      os .+= -sign(λ₁) * abs(string_potential) * (xcoordinate - reference), "Ntot", site
+      @info "Added string potential" site=site potential=-sign(λ₁) * abs(string_potential) * (xcoordinate - reference)
     end
   end
   println(header, "\n")
@@ -324,8 +325,8 @@ let
     ["S-", "Sx", "S-", "Sx", "S-", "Sx", "S-", "Sx"],
   ]
   loops_signs = configure_signs(loop_operator)
-  println("") 
-  @show loops_signs
+  # println("") 
+  # @show loops_signs
 
   
   # Generate the list of loop indices along the periodic direction of the cylinder
@@ -340,9 +341,6 @@ let
     error("Each loop must span $(2 * Ny) sites, but found $loop_size.")
   end
 
-  # for (idx, loop) in enumerate(eachrow(loop_indices))
-  #   @info "Loop index" idx collect(loop)
-  # end
   
   # Add the loop perturbation terms to the Hamiltonian
   if abs(λ₁) > 1e-8 && abs(λ₂) > 1e-8
@@ -377,15 +375,16 @@ let
     end
   end
   #***************************************************************************************************************
+  #***************************************************************************************************************
 
 
+  
   #***************************************************************************************************************
   #*************************************************************************************************************** 
   # Set up the Hamiltonian as an MPO  
   sites = siteinds("tJ", N; conserve_nf=true)
   H = MPO(os, sites)
 
-  
   # Set up the iniital MPS with one hole doepd in the system
   state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
   state[div(N, 2)] = "Emp"  # Doping one hole in the middle of the cylinder
@@ -393,7 +392,9 @@ let
     error("The system is not proper doped with one hole!")
   end
   println("\nInitial state used in DMRG simulation:")
-  @show state
+  for (_, tmp) in enumerate(state)
+    print(rpad(tmp, 5))
+  end
  
   
   # Set up the initial MPS as a random MPS 
@@ -518,8 +519,7 @@ let
     @show idx, plaquette_indices[idx, :]
   end
   plaquette_signs = configure_signs(plaquette)
-  # @show plaquette_signs
-  # println("")
+ 
 
 
   # Compute the expectation values of plaquette operators
@@ -546,8 +546,7 @@ let
     end
   end
   @show plaquette_vals
-  println(repeat("#", 200))
-  println(repeat("#", 200))
+  println(header, "\n")
   println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
@@ -673,56 +672,9 @@ let
   end
 
 
-  # # Compute order parameters using Sy operator directly
-  # order_string = Vector{String}(["Sz", "Sy", "Sy", "Sy", "Sx", "Sz", "Sz", "Sz", "Sy", "Sx", "Sx", "Sx"])
-  # alternative_order  = zeros(Float64, length(centers))
-  # alternative_order₀ = zeros(Float64, length(centers))
-  # for idx1 in eachindex(order_loops)
-  #   loop = order_loops[idx1]
-    
-  #   os_order = OpSum()
-  #   os_order +=  "Ntot", centers[idx1], 
-  #     order_string[1], loop[1], 
-  #     order_string[2], loop[2], 
-  #     order_string[3], loop[3], 
-  #     order_string[4], loop[4], 
-  #     order_string[5], loop[5], 
-  #     order_string[6], loop[6],
-  #     order_string[7], loop[7],
-  #     order_string[8], loop[8],
-  #     order_string[9], loop[9],
-  #     order_string[10], loop[10],
-  #     order_string[11], loop[11],
-  #     order_string[12], loop[12]
-  #   W_order = MPO(os_order, sites)
-
-  #   os_order_identity = OpSum()
-  #   os_order_identity += order_string[1], loop[1], 
-  #     order_string[2], loop[2], 
-  #     order_string[3], loop[3], 
-  #     order_string[4], loop[4], 
-  #     order_string[5], loop[5], 
-  #     order_string[6], loop[6],
-  #     order_string[7], loop[7],
-  #     order_string[8], loop[8],
-  #     order_string[9], loop[9],
-  #     order_string[10], loop[10],
-  #     order_string[11], loop[11],
-  #     order_string[12], loop[12]
-  #   W_order_identity = MPO(os_order_identity, sites)
-
-  #   alternative_order[idx1] = 2^12 * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
-  #   alternative_order₀[idx1] = 2^12 * real(inner(ψ', W_order, ψ))
-  # end
-
-
-
   println("Expectation values of order parameters:")
   @show order_parameter
   @show order₀
-  
-  # @show alternative_order 
-  # @show alternative_order₀
   println(repeat("#", 200))
   println(repeat("#", 200))
   #***************************************************************************************************************

@@ -4,7 +4,7 @@ using ITensors
 # using ITensors: orthocenter, sites, copy, complex, real
 
 # Measure von Neumann entanglment entropy on a sequence of bonds
-function entanglement_entropy(tmp_ψ :: MPS, length :: Int)
+function entanglement_entropy(tmp_ψ::MPS, length::Int)
     entropy = Vector{Float64}()
     for site_index in 1 : length - 1 
         orthogonalize!(tmp_ψ, site_index)
