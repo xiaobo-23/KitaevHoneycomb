@@ -11,12 +11,12 @@ using TimerOutputs
 using Random
 
 
-include("updated/HoneycombLattice.jl")
-include("updated/Entanglement.jl")
-include("updated/TopologicalLoops.jl")
-include("updated/CustomObserver.jl")
-include("updated/topological_loops_armchair.jl")
-include("updated/kitaev_hamiltonian.jl")
+include("HoneycombLattice.jl")
+include("Entanglement.jl")
+include("TopologicalLoops.jl")
+include("CustomObserver.jl")
+include("topological_loops_armchair.jl")
+# include("kitaev_hamiltonian.jl")
 
 
 # System geometry parameters
@@ -279,7 +279,7 @@ let
 
     for site in edge_sites
       os .+= -abs(P), "Ntot", site
-      # @info "Added chemical potential wall on edges" site=site potential=-abs(P)
+      @info "Added chemical potential wall on edges" site=site potential=-abs(P)
     end
   end
   
@@ -289,6 +289,7 @@ let
     the potential is a function of x coordinate
   """
   if abs(string_potential) > 1e-8 && sign(λ₁) != sign(λ₂)
+    println("")
     println(header)
     println("Adding string potential in the bulk to prevent the skewness of electron density")
     
@@ -299,7 +300,7 @@ let
       @info "Added string potential" site=site potential=-sign(λ₁) * abs(string_potential) * (xcoordinate - reference)
     end
   end
-  println(header, "\n")
+  
 
 
   """
@@ -374,6 +375,7 @@ let
       end
     end
   end
+  println(header, "\n")
   #***************************************************************************************************************
   #***************************************************************************************************************
 
@@ -381,26 +383,37 @@ let
   
   #***************************************************************************************************************
   #*************************************************************************************************************** 
-  # Set up the Hamiltonian as an MPO  
-  sites = siteinds("tJ", N; conserve_nf=true)
-  H = MPO(os, sites)
-
-  # Set up the iniital MPS with one hole doepd in the system
-  state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
-  state[div(N, 2)] = "Emp"  # Doping one hole in the middle of the cylinder
-  if count(==("Emp"), state) != 1
-    error("The system is not proper doped with one hole!")
-  end
-  println("\nInitial state used in DMRG simulation:")
-  for (_, tmp) in enumerate(state)
-    print(rpad(tmp, 5))
-  end
+  """
+    Set up the Hamiltonian as an MPO and the initial MPS state for DMRG simulations
+  """  
+  # sites = siteinds("tJ", N; conserve_nf=true)
+  
+  # # Set up the iniital MPS with one hole doepd in the system
+  # state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
+  # state[div(N, 2)] = "Emp"  # Doping one hole in the middle of the cylinder
+  # if count(==("Emp"), state) != 1
+  #   error("The system is not proper doped with one hole!")
+  # end
+  # println("\nInitial state used in DMRG simulation:")
+  # for (_, tmp) in enumerate(state)
+  #   println(tmp)
+  # end
  
-  
-  # Set up the initial MPS as a random MPS 
-  Random.seed!(123)
-  ψ₀ = randomMPS(sites, state, 8)
-  
+  # # Set up the initial MPS as a random MPS 
+  # Random.seed!(123)
+  # ψ₀ = randomMPS(sites, state, 8)
+ 
+  """
+      Read in the wave function from a file and start the DMRG simulation
+  """
+  input_file = "data/2d_kitaev_FM_Lx10_t0.025.h5"
+  file = h5open(input_file, "r")
+  ψ₀ = read(file, "psi", MPS)
+  sites = sitesinds(ψ₀) 
+
+
+  # Set up the Hamiltoniain as an MPO
+  H = MPO(os, sites)
   
   # Set up the parameters used in the DMRG simulation including bond dimension and cutoff errors
   nsweeps = 1
@@ -515,8 +528,8 @@ let
   ]
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
   nplaquettes = size(plaquette_indices, 1)
-  for idx in 1 : nplaquettes
-    @show idx, plaquette_indices[idx, :]
+  for (idx, tmp) in enumerate(plaquette)
+    @show idx, tmp
   end
   plaquette_signs = configure_signs(plaquette)
  
