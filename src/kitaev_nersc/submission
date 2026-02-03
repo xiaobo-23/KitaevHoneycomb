@@ -1,0 +1,73 @@
+#!/bin/bash
+
+folders=("WL+1_WR+1/" "WL+1_WR-1/" "WL-1_WR+1/" "WL-1_WR-1/")
+left_edge=("η₁=2.0" "η₁=2.0" "η₁=-2.0" "η₁=-2.0")
+right_edge=("η₂=2.0" "η₂=-2.0" "η₂=2.0" "η₂=-2.0")
+
+for idx in "${!folders[@]}"
+do
+    # Create main folder for each edge configuration
+    folder="${folders[$idx]}"
+    mkdir -p "${folder}kappa-0.4/"
+    
+    
+    # Copy source files into the folder
+    rsync -a --exclude='WL*' *.jl jobs_submission{1,2} "${folder}kappa-0.4/"
+    
+
+    # Set up correct edge parameters to extract fermionic binding energy
+    local_file="${folder}kappa-0.4/kitaev_honeycomb_fermionic.jl"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        
+        # Mac version
+        sed -i '' \
+            -e "s/η₁=2.0/${left_edge[$idx]}/g" \
+            -e "s/η₂=2.0/${right_edge[$idx]}/g" \
+            -e "s|FM/W4/Lx10/fermionic/kappa-0.4/data|FM/W4/Lx10/fermionic/${folder}kappa-0.4/data|g" \
+            "$local_file"
+    else
+        
+        # Linux version
+        sed -i \
+            -e "s/η₁=2.0/${left_edge[$idx]}/g" \
+            -e "s/η₂=2.0/${right_edge[$idx]}/g" \
+            -e "s|FM/W4/Lx10/fermionic/kappa-0.4/data|FM/W4/Lx10/fermionic/${folder}kappa-0.4/data|g" \
+            "$local_file"
+    fi
+
+
+    # Create subfolders and modify the hopping amplitude in each subfolder
+    path="${folder}kappa-0.4/"
+    cd "$path"
+
+    for inner_idx in $(seq 0.0  0.01  0.31)
+    do
+        # Archive existing directory to avoid overwriting
+        if [ -d "t$inner_idx" ]; then
+            mv "t$inner_idx" "t${inner_idx}_arXiv"
+        fi
+
+        # Create directory and copy the source file
+        mkdir -p "t$inner_idx"
+        rsync -a kitaev_honeycomb_fermionic.jl "t$inner_idx/"
+        
+        
+        # Set up correct hopping amplitude in the source file
+        local_jl_file="t$inner_idx/kitaev_honeycomb_fermionic.jl"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' "s/t=0.0/t=$inner_idx/g" "$local_jl_file"
+        else
+            sed -i "s/t=0.0/t=$inner_idx/g" "$local_jl_file"
+        fi
+    done 
+
+
+    # Create data directory for storing results
+    data_dir="/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/FM/W4/Lx10/fermionic/${path}/data/"
+    mkdir -p "$data_dir"
+
+    sbatch jobs_submission1
+    sbatch jobs_submission2
+
+    cd ../../
+done
