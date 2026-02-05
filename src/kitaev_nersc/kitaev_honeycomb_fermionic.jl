@@ -11,11 +11,11 @@ using TimerOutputs
 using Random
 
 
-include("HoneycombLattice.jl")
-include("Entanglement.jl")
-include("TopologicalLoops.jl")
-include("CustomObserver.jl")
-include("topological_loops_armchair.jl")
+include("../HoneycombLattice.jl")
+include("../Entanglement.jl")
+include("../TopologicalLoops.jl")
+include("../CustomObserver.jl")
+include("../topological_loops_armchair.jl")
 # include("kitaev_hamiltonian.jl")
 
 
@@ -29,7 +29,7 @@ const N::Int = Nx * Ny         # Total number of lattice sites
 
 # Lattice topology constants
 const number_of_bonds::Int = 6 * Nx - 4           # Total number of bonds in the lattice
-const number_of_wedges::Int = 3 * N - 4 * Ny     # Total number of wedges (3-spin interaction sites)
+const number_of_wedges::Int = 3 * N - 4 * Ny      # Total number of wedges (3-spin interaction sites)
 
 
 # Set up parameters for multithreading for BLAS/LAPACK and Block sparse multithreading
@@ -60,7 +60,7 @@ function get_simulation_params()
     Set up the simulations parameters for the Hamiltonian
   """
   return (
-    Jx=1.0, Jy=1.0, Jz=1.0,       # Two-body anisotropic Kitaev interaction strength 
+    Jx=-1.0, Jy=-1.0, Jz=-1.0,    # Two-body anisotropic Kitaev interaction strength 
     kappa=-0.4,                   # Three-spin interaction strength
     t=0.0,                        # Electron hopping amplitude   
     P=10.0,                       # Edge chemical potential to confine the hole in the bulk
@@ -103,7 +103,7 @@ let
   
 
   # Set up the lattice geometry and boundary conditions
-  # TO-TO: Implement PBC in the x direction for armchair geometry
+  # TO-DO: Implement PBC in the x direction for armchair geometry
   # TO-DO: Implement twisted boundary conditions in the y direction fot the armchair geometery
   x_periodic = false
 
@@ -388,22 +388,35 @@ let
   left_edge_fermionic_sites = [1, 2, 3, 4]
   right_edge_fermionic_sites = [N - 3, N - 2, N - 1, N]
   
-  # Alternating Sy-Sx pattern for Majorana fermion operators
-  fermionic_operators = ["Sy", "Sx", "Sy", "Sx"]
   
+  # Alternating Sy-Sx pattern for Majorana fermion operators
+  println("\nAdding edge operators to extract the fermionic binding energy:")
   if abs(η₁) > 1e-8 && abs(η₂) > 1e-8
-    # Add perturbation on left edge
+    # Add perturbation on the left edge
     for (i, site) in enumerate(left_edge_fermionic_sites)
       coefficient = (i == 1) ? η₁ : abs(η₁)
-      os .+= coefficient, fermionic_operators[i], site
-      @info "Adding perturbations on the left edge" site=site operator=fermionic_operators[i] coefficient=coefficient
+      if iseven(i)
+        os .+= coefficient, "Sx", site
+        @show coefficient, "Sx", site
+      else
+        os .+= -0.5im * coefficient, "S+", site 
+        os .+=  0.5im * coefficient, "S-", site
+        @show coefficient, "Sy", site
+      end
     end
     
-    # Add perturbation on right edge
+    
+    # Add perturbation on the right edge
     for (i, site) in enumerate(right_edge_fermionic_sites)
       coefficient = (i == 1) ? η₂ : abs(η₂)
-      os .+= coefficient, fermionic_operators[i], site
-      @info "Adding perturbations on the right edge" site=site operator=fermionic_operators[i] coefficient=coefficient
+      if iseven(i)
+        os .+= coefficient, "Sx", site
+        @show coefficient, "Sx", site
+      else
+        os .+= -0.5im * coefficient, "S+", site
+        os .+=  0.5im * coefficient, "S-", site
+        @show coefficient, "Sy", site
+      end
     end
   end
 
@@ -420,7 +433,7 @@ let
   """  
   sites = siteinds("tJ", N; conserve_nf=true)
   
-  # Set up the iniital MPS with one hole doepd in the system
+  # Set up the initial MPS with one hole doped in the system
   state = [isodd(n) ? "Up" : "Dn" for n in 1 : N]
   state[div(N, 2)] = "Emp"  # Doping one hole in the middle of the cylinder
   if count(==("Emp"), state) != 1
@@ -445,13 +458,13 @@ let
   # sites = sitesinds(ψ₀) 
 
 
-  # Set up the Hamiltoniain as an MPO
+  # Set up the Hamiltonian as an MPO
   H = MPO(os, sites)
   
   
   # Set up the parameters used in the DMRG simulation including bond dimension and cutoff errors
   nsweeps = 1
-  maxdim  = [20, 100, 200, 800, 1500]
+  maxdim  = [20, 100, 200, 800, 2500]
   cutoff  = [1E-10]
   eigsolve_krylovdim = 50 # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
   
@@ -733,7 +746,7 @@ let
   # """
   #   Compute the variance of the energy 
   # """
-  # @timeit time_machine "compaute the variance" begin
+  # @timeit time_machine "compute the variance" begin
   #   H2 = inner(H, ψ, H, ψ)
   #   E₀ = inner(ψ', H, ψ)
   #   variance = H2 - E₀^2
@@ -786,30 +799,30 @@ let
   #*************************************************************************************************************** 
 
   
-  output_filename = "data/2d_tK_FM_Lx$(Nx_unit)_Ly$(Ny_unit)_kappa$(kappa).h5"
-  h5open(output_filename, "w") do file
-    write(file, "psi", ψ)
-    write(file, "E0", energy)
-    # write(file, "E0variance", variance)
-    write(file, "Ehist", custom_observer.ehistory)
-    write(file, "Bond", custom_observer.chi)
-    # write(file, "Entropy", SvN)
-    write(file, "Sx0", Sx₀)
-    write(file, "Sx",  Sx)
-    # write(file, "Cxx", xxcorr)
-    write(file, "Sy0", Sy₀)
-    write(file, "Sy", Sy)
-    # write(file, "Cyy", yycorr)
-    write(file, "Sz0", Sz₀)
-    write(file, "Sz",  Sz)
-    # write(file, "Czz", zzcorr)
-    write(file, "N0", n₀)
-    write(file, "N", n)
-    write(file, "Plaquette", plaquette_vals)
-    write(file, "Loop", loop_vals)
-    write(file, "OrderParameter", order_parameter)
-  end
-  
+  # output_filename = "/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/AFM/W4/Lx10/fermionic/kappa-0.4/data/tKitaev_Lx$(Nx_unit)_Ly$(Ny_unit)_t$(t).h5"
+  # h5open(output_filename, "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "E0", energy)
+  #   # write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   # write(file, "Entropy", SvN)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   # write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   # write(file, "Cyy", yycorr)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   # write(file, "Czz", zzcorr)
+  #   write(file, "N0", n₀)
+  #   write(file, "N", n)
+  #   write(file, "Plaquette", plaquette_vals)
+  #   write(file, "Loop", loop_vals)
+  #   write(file, "OrderParameter", order_parameter)
+  # end
+
 
   return
 end

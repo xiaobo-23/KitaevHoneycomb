@@ -38,10 +38,13 @@ do
 
     # Create subfolders and modify the hopping amplitude in each subfolder
     path="${folder}kappa-0.4/"
-    cd "$path"
+    original_dir="$PWD"
+    cd "$path" || exit 1
 
-    for inner_idx in $(seq 0.0  0.01  0.31)
+    for i in $(seq 0 31)
     do
+        inner_idx=$(printf "%.2f" $(echo "scale=2; $i * 0.01" | bc))
+        
         # Archive existing directory to avoid overwriting
         if [ -d "t$inner_idx" ]; then
             mv "t$inner_idx" "t${inner_idx}_arXiv"
@@ -55,19 +58,19 @@ do
         # Set up correct hopping amplitude in the source file
         local_jl_file="t$inner_idx/kitaev_honeycomb_fermionic.jl"
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s/t=0.0/t=$inner_idx/g" "$local_jl_file"
+            sed -i '' "s/t=0\.0/t=$inner_idx/g" "$local_jl_file"
         else
-            sed -i "s/t=0.0/t=$inner_idx/g" "$local_jl_file"
+            sed -i "s/t=0\.0/t=$inner_idx/g" "$local_jl_file"
         fi
     done 
 
 
     # Create data directory for storing results
-    data_dir="/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/FM/W4/Lx10/fermionic/${path}/data/"
+    data_dir="/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/FM/W4/Lx10/fermionic/${path}data/"
     mkdir -p "$data_dir"
 
     sbatch jobs_submission1
     sbatch jobs_submission2
 
-    cd ../../
+    cd "$original_dir" || exit 1
 done
