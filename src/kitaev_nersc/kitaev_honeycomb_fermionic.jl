@@ -486,8 +486,9 @@ let
   Sy₀ = -0.5im * (Splus₀ - Sminus₀)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
 
+  number_of_holes = @isdefined(state) ? count(==("Emp"), state) : 1
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
-  if abs(N - sum(n₀) - 1) > 1e-8
+  if abs(N - sum(n₀) - number_of_holes) > 1e-8
     error("The initial state does not have the correct number of electrons!")
   end
 
@@ -522,7 +523,7 @@ let
   @timeit time_machine "one-point functions" begin
     # Measure electron density and throw an error if the optimized wave function does not have the correct number of electrons
     n = expect(ψ, "Ntot", sites = 1 : N)
-    if abs(N - sum(n) - count(==("Emp"), state)) > 1e-8
+    if abs(N - sum(n) - number_of_holes) > 1e-8
       error("The optimized state does not have the correct number of electrons!")
     end
     println("\nElectron density computed based on the optimized wave function: ")
@@ -575,9 +576,9 @@ let
   ]
   plaquette_indices = PlaquetteListArmchair(Nx_unit, Ny_unit, "armchair", false)
   nplaquettes = size(plaquette_indices, 1)
-  for (idx, tmp) in enumerate(plaquette)
-    @show idx, tmp
-  end
+  # for (idx, tmp) in enumerate(plaquette)
+  #   @show idx, tmp
+  # end
   plaquette_signs = configure_signs(plaquette)
  
 
@@ -605,9 +606,9 @@ let
       end
     end
   end
+  println("\nExpectation values of plaquette operators:")
   @show plaquette_vals
   println(header, "\n")
-  println("")
   #***************************************************************************************************************
   #*************************************************************************************************************** 
 
