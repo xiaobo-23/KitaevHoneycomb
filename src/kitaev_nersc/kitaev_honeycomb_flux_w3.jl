@@ -27,7 +27,7 @@ const OMP_NUM_THREADS = 8
 
 
 # Lattice parameters for the honeycom lattice with zigzag geometry
-const Nx_unit = 10
+const Nx_unit = 11
 const Ny_unit = 3
 const Nx = 2 * Nx_unit
 const Ny = Ny_unit
@@ -61,6 +61,7 @@ const time_machine = TimerOutput()
 
 
 
+
 let
   header = repeat('#', 200)
   println(header)
@@ -72,6 +73,7 @@ let
     Set up the honeycomb lattice with proper boundary conditions.
     Returns bonds (two-body interactions) and wedges (three-spin interactions).
   """
+  
   # Construct a vector of bonds to set up the two-body interactions
   lattice = if x_periodic
     honeycomb_zigzag_pbc(Nx, Ny; yperiodic=y_periodic)
@@ -80,38 +82,43 @@ let
   end
   number_of_bonds = length(lattice)
  
-
   # Validate expected bond count
   expected_bonds = trunc(Int, 3/2 * N) - Ny + (y_periodic ? 0 : -trunc(Int, N / 2))
   if number_of_bonds != expected_bonds
     error("Unexpected number of bonds! Expected: $expected_bonds, Found: $number_of_bonds")
   end
 
-  for (i, b) in enumerate(lattice)
-    @info "Bond $i" s1=b.s1 s2=b.s2
+  # for (i, b) in enumerate(lattice)
+  #   @info "Bond $i" s1=b.s1 s2=b.s2
+  # end
+  
+  
+  # Construct a vector of three-point objects to set up the three-spin interactions
+  wedge = honeycomb_zigzag_wedge(Nx, Ny; yperiodic=true)
+  
+  # Validate expected wedge count
+  if length(wedge) != 3 * N - 4 * Ny
+    error("The number of three-spin interaction terms is not correct! Expected: $(3 * N - 4 * Ny), Found: $(length(wedge))")
   end
   
-  
-  # # Construct a vector of wedges to set up the three-spin interactions
-  # wedge = honeycomb_twist_wedge(Nx, Ny; yperiodic=true)
-  # expected_wedge = 3 * N - 4 * Ny - 2
-  # if length(wedge) != expected_wedge
-  #   error("The number of three-spin interaction terms is not correct! Expected: $expected_wedge, Found: $count_wedge")
-  # end
-  # # @show length(wedge), wedge 
-  
+  # for (idx, w) in enumerate(wedge)
+  #   @info "Wedge $idx" s1=w.s1 s2=w.s2 s3=w.s3
+  # end  
 
-  # Identify edge sites: first 7 and last 7 sites of the lattice
+
+  # Identify edge sites: first 6 and last 6 columns
   edge_sites = sort(collect(Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)))
   @show length(edge_sites), edge_sites
   #****************************************************************************************************************
   
   
   
+  
+  
+  
   #****************************************************************************************************************
   """Set the Hamiltonian as an MPO"""
 
-  
   # Set up two-body interactions in the Hamiltonian
   os = OpSum()
   xbond = Ref(0)
@@ -153,7 +160,6 @@ let
   if total_bonds != number_of_bonds
     error("Bond count mismatch! Expected: $number_of_bonds, Found: $total_bonds (x=$( xbond[]), y=$(ybond[]), z=$(zbond[]))")
   end
-
 
 
 

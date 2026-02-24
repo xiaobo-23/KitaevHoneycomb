@@ -588,3 +588,69 @@ function honeycomb_twist_wedge(Nx::Int, Ny::Int; yperiodic=false)
 	# @show wedge
 	return wedge
 end
+
+
+
+
+# 02/24/2026
+# Implment the three-spin object to introduce the three-body interaction on the zigzag geometry
+function honeycomb_zigzag_wedge(Nx::Int, Ny::Int; yperiodic=false)
+	"""
+		Use the zigzag geometry without a twist
+		Input parameters:
+		Nx is the number of sites along the x direction
+		Ny is the number of sites along the y direction
+	"""
+	
+	# Set up boundary conditions, the number of sites and the number of wedges
+	yperiodic = yperiodic && (Ny > 2)
+	N = Nx * Ny					# Number of sites
+	Nwedge = 3 * N - 4 * Ny		# Number of wedges
+
+	wedge = Vector{WedgeBond}(undef, Nwedge)
+	
+	b = 0
+	for n in 1 : N
+		x = div(n - 1, Ny) + 1
+		y = mod(n - 1, Ny) + 1
+		# @show n, x, y
+		
+		# Set up the wedge object along the left edge
+		if x == 1
+			n₁ = n + Ny
+			n₂ = y == 1 ? n + 2 * Ny - 1 : n + Ny - 1
+			wedge[b += 1] = y == 1 ? WedgeBond(n₂, n, n₁) : WedgeBond(n₁, n, n₂)
+		end
+		
+
+		# Set up the wedge object along the right edge
+		if x == Nx
+			n₁ = n - Ny
+			n₂ = y == Ny ? n - 2 * Ny + 1 : n - Ny + 1
+			wedge[b += 1] = y == Ny ? WedgeBond(n₂, n, n₁) : WedgeBond(n₁, n, n₂)
+		end
+
+		
+		# Set up the wedge object in the bulk
+		if 2 <= x <= Nx - 1
+			if iseven(x)
+				n₁ = n + Ny
+				n₂ = n - Ny
+				n₃ = y == Ny ? n - 2 * Ny + 1 : n - Ny + 1
+				wedge[b += 1] = WedgeBond(n₂, n, n₁)
+				wedge[b += 1] = WedgeBond(n₃, n, n₁)
+				wedge[b += 1] = WedgeBond(min(n₂, n₃), n, max(n₂, n₃))
+			else
+				n₁ = n - Ny 
+				n₂ = n + Ny 
+				n₃ = y == 1 ? n + 2 * Ny - 1 : n + Ny - 1
+				wedge[b += 1] = WedgeBond(n₁, n, n₂)
+				wedge[b += 1] = WedgeBond(n₁, n, n₃)
+				wedge[b += 1] = WedgeBond(min(n₂, n₃), n, max(n₂, n₃))
+			end
+		end
+	
+	end
+	
+	return wedge
+end
