@@ -114,8 +114,6 @@ let
   
   
   
-  
-  
   #****************************************************************************************************************
   """Set the Hamiltonian as an MPO"""
   os = OpSum()
@@ -260,38 +258,39 @@ let
   end
   println("\n")
   
-  # #*************************************************************************************************** 
-  # # Adding loop perturbation terms into the Hamiltonian
-  # #***************************************************************************************************
 
-  # # Set up the loop operators and loop indices 
-  # loop_operator = ["Sx", "Sx", "Sz", "Sz", "Sz", "Sz"]            # Hard-coded for width-3 cylinders
-  # loop_indices = LoopList_RightTwist(Nx_unit, Ny_unit, "rings", "y")  
-  # loop_indices_symmetric = LoopList_RightTwist_Symmetric(Nx_unit, Ny_unit, "rings", "y")
-  # nloops = size(loop_indices, 1)
-  # @show nloops, loop_indices
-  # @show size(loop_indices_symmetric, 1), loop_indices_symmetric
+  #**************************************************************************************************************** 
+  """Add perturbation terms in the Hamiltonian"""
 
+  # Set up the loop operators and loop indices 
+  loop_operator = ["Sz", "Sz", "Sz", "Sz", "Sz", "Sz"]      # Hard-coded for width-3 cylinders with zigzag geometry
   
-  # if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8
-  #   for idx in 1 : 3
-  #     @show "Adding loop perturbation terms for loop index" idx, nloops - idx + 1
-  #     @show loop_indices[idx, :], loop_indices_symmetric[nloops - idx + 1, :]
-  #     os .+= -1.0 * lambda₁, loop_operator[1], loop_indices[idx, 1], 
-  #           loop_operator[2], loop_indices[idx, 2], 
-  #           loop_operator[3], loop_indices[idx, 3], 
-  #           loop_operator[4], loop_indices[idx, 4], 
-  #           loop_operator[5], loop_indices[idx, 5], 
-  #           loop_operator[6], loop_indices[idx, 6]
+  # Generate loop indices for the left edge and right edge of the cylinder
+  loop_indices_left  = hcat([collect((idx - 1) * 2 * Ny + 1 : idx * 2 * Ny) for idx in 1:3]...)'
+  loop_indices_right = hcat([N + 1 .- reverse(loop_indices_left[idx, :]) for idx in 1:3]...)'
+  nloops = size(loop_indices_left, 1)
+  @info loop_indices_left, loop_indices_right 
 
-  #     os .+= -1.0 * lambda₂, loop_operator[1], loop_indices_symmetric[nloops - idx + 1, 1], 
-  #           loop_operator[2], loop_indices_symmetric[nloops - idx + 1, 2], 
-  #           loop_operator[3], loop_indices_symmetric[nloops - idx + 1, 3], 
-  #           loop_operator[4], loop_indices_symmetric[nloops - idx + 1, 4], 
-  #           loop_operator[5], loop_indices_symmetric[nloops - idx + 1, 5], 
-  #           loop_operator[6], loop_indices_symmetric[nloops - idx + 1, 6]
-  #   end
-  # end
+
+  if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8
+    for idx in 1 : 3
+      @info "Adding loop perturbation terms" loop_index=idx left_indices=loop_indices_left[idx, :] right_indices=loop_indices_right[idx, :]
+      os .+= -1.0 * lambda₁, loop_operator[1], loop_indices_left[idx, 1], 
+            loop_operator[2], loop_indices_left[idx, 2], 
+            loop_operator[3], loop_indices_left[idx, 3], 
+            loop_operator[4], loop_indices_left[idx, 4], 
+            loop_operator[5], loop_indices_left[idx, 5], 
+            loop_operator[6], loop_indices_left[idx, 6]
+
+      os .+= -1.0 * lambda₂, loop_operator[1], loop_indices_right[idx, 1], 
+            loop_operator[2], loop_indices_right[idx, 2], 
+            loop_operator[3], loop_indices_right[idx, 3], 
+            loop_operator[4], loop_indices_right[idx, 4], 
+            loop_operator[5], loop_indices_right[idx, 5], 
+            loop_operator[6], loop_indices_right[idx, 6]
+    end
+  end
+
 
   # # Generate the plaquette indices for all the plaquettes in the cylinder
   # # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
