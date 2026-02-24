@@ -100,7 +100,7 @@ let
   if length(wedge) != 3 * N - 4 * Ny
     error("The number of three-spin interaction terms is not correct! Expected: $(3 * N - 4 * Ny), Found: $(length(wedge))")
   end
-  
+
   # for (idx, w) in enumerate(wedge)
   #   @info "Wedge $idx" s1=w.s1 s2=w.s2 s3=w.s3
   # end  
@@ -108,7 +108,7 @@ let
 
   # Identify edge sites: first 6 and last 6 columns
   edge_sites = sort(collect(Set(1 : 6*Ny) ∪ Set(N - 6*Ny + 1 : N)))
-  @show length(edge_sites), edge_sites
+  # @show length(edge_sites), edge_sites
   #****************************************************************************************************************
   
   
@@ -118,9 +118,11 @@ let
   
   #****************************************************************************************************************
   """Set the Hamiltonian as an MPO"""
+  os = OpSum()
+  
 
   # Set up two-body interactions in the Hamiltonian
-  os = OpSum()
+  println("\nSetting up two-body terms including the hopping and Kitaev interaction...")
   xbond = Ref(0)
   ybond = Ref(0)
   zbond = Ref(0)
@@ -137,101 +139,126 @@ let
     if iseven(xcoordinate)
       os .+= -Jz, "Sz", b.s1, "Sz", b.s2
       zbond[] += 1
-      @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
+      # @info "Added Sz-Sz bond" s1=b.s1 s2=b.s2
     else
       if abs(b.s1 - b.s2) == Ny
         os .+= -Jx, "Sx", b.s1, "Sx", b.s2
         xbond[] += 1
-        @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
-      else``
+        # @info "Added Sx-Sx bond" s1=b.s1 s2=b.s2
+      else
         os .+= -0.25 * Jy, "S+", b.s1, "S-", b.s2
         os .+= -0.25 * Jy, "S-", b.s1, "S+", b.s2
         os .+=  0.25 * Jy, "S+", b.s1, "S+", b.s2
         os .+=  0.25 * Jy, "S-", b.s1, "S-", b.s2
         ybond[] += 1 
-        @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
+        # @info "Added Sy-Sy bond" s1=b.s1 s2=b.s2
       end
     end
   end
   
   # Validate the number of bonds in the Hamiltonian
   total_bonds = xbond[] + ybond[] + zbond[]
-  @info "Bond count summary" xbond=xbond[] ybond=ybond[] zbond=zbond[] total=total_bonds expected=number_of_bonds
+  @info "Two-body interaction count summary" xbond=xbond[] ybond=ybond[] zbond=zbond[] total=total_bonds expected=number_of_bonds
   if total_bonds != number_of_bonds
     error("Bond count mismatch! Expected: $number_of_bonds, Found: $total_bonds (x=$( xbond[]), y=$(ybond[]), z=$(zbond[]))")
   end
+  println("\n")
 
 
+  # Set up three-spin interactions in the Hamiltonian
+  println("\nSetting up three-spin interactions...")
+  count_wedge = Ref(0)
+  for w in wedge
+    x_coordinate = div(w.s2 - 1, Ny) + 1
+    y_coordinate = mod(w.s2 - 1, Ny) + 1
 
-  # # Set Up the three-spin interactions in the Hamiltonian
-  # count_wedge = 0
-  # for w in wedge
-  #   @show w.s1, w.s2, w.s3
-  #   x_coordinate = div(w.s2 - 1, Ny) + 1
-  #   y_coordinate = mod(w.s2 - 1, Ny) + 1
+    if abs(w.s3 - w.s1) == 2 * Ny
+      if iseven(x_coordinate)
+        os .+=  0.5im * kappa, "Sx", w.s1, "S-", w.s2, "Sz", w.s3 
+        os .+= -0.5im * kappa, "Sx", w.s1, "S+", w.s2, "Sz", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sy", w.s2, "Sz", w.s3)
+      else
+        os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
+        os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+      end
+      count_wedge[] += 1
+    end
 
-  #   if abs(w.s1 - w.s2) == abs(w.s2 - w.s3)
-  #     if isodd(x_coordinate)
-  #       # os .+= kappa, "Sz", w.s1, "Sy", w.s2, "Sx", w.s3
-  #       os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3 
-  #       os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-  #       @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
-  #     else
-  #       # os .+= kappa, "Sx", w.s1, "Sy", w.s2, "Sz", w.s3
-  #       os .+=  0.5im * kappa, "Sx", w.s1, "S-", w.s2, "Sz", w.s3
-  #       os .+= -0.5im * kappa, "Sx", w.s1, "S+", w.s2, "Sz", w.s3
-  #       @info "Added three-spin term" term = ("Sx", w.s1, "Sy", w.s2, "Sz", w.s3)
-  #     end
-  #     count_wedge += 1
-  #   end
 
-  #   if (abs(w.s1 - w.s2) == 1 || abs(w.s1 - w.s2) == 2) && abs(w.s2 - w.s3) == 3
-  #     if isodd(x_coordinate)
-  #       # os .+= kappa, "Sy", w.s1, "Sz", w.s2, "Sx", w.s3
-  #       os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
-  #       os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
-  #       @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
-  #       count_wedge += 1
-  #     else
-  #       # os .+= kappa, "Sy", w.s1, "Sx", w.s2, "Sz", w.s3
-  #       os .+=  0.5im * kappa, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
-  #       os .+= -0.5im * kappa, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
-  #       @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
-  #       count_wedge += 1
-  #     end
-  #   end
+    if abs(w.s3 - w.s1) == 1
+      if isodd(x_coordinate)
+        os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+      else
+        os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+      end
+      count_wedge[] += 1
+    end
 
-  #   if abs(w.s1 - w.s2) == 3 && (abs(w.s2 - w.s3) == 1 || abs(w.s2 - w.s3) == 2)
-  #     if iseven(x_coordinate)
-  #       # os .+= kappa, "Sx", w.s1, "Sz", w.s2, "Sy", w.s3
-  #       os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
-  #       os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
-  #       @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
-  #       count_wedge += 1
-  #     else
-  #       # os .+= kappa, "Sz", w.s1, "Sx", w.s2, "Sy", w.s3
-  #       os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
-  #       os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-  #       @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
-  #       count_wedge += 1
-  #     end
-  #   end
-  # end
+
+    if abs(w.s3 - w.s1) == 2
+      if iseven(x_coordinate)
+        os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
+        os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+      else
+        os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
+        os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+      end
+      count_wedge[] += 1
+    end
+
+
+    if abs(w.s3 - w.s1) == 2 * Ny - 1
+      if isodd(x_coordinate)
+        os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+      else
+        os .+=  0.5im * kappa, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
+        os .+= -0.5im * kappa, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
+      end
+      count_wedge[] += 1
+    end
+
+
+    if abs(w.s3 - w.s1) == 3 * Ny - 1 
+      if iseven(x_coordinate)
+        os .+=  0.5im * kappa, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
+        os .+= -0.5im * kappa, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
+        @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
+      else
+        os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
+        os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
+        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+      end
+      count_wedge[] += 1
+    end
+
+  end
   
-  # # Validate the number of three-spin interaction terms
-  # if count_wedge != expected_wedge
-  #   error("The number of three-spin interaction terms is not correct! Expected: $expected_wedge, Found: $count_wedge")
-  # end
-
+  # Validate the number of three-spin interaction terms
+  if count_wedge[] != 3 * N - 4 * Ny
+    error("The number of three-spin interaction terms is not correct! Expected: $(3 * N - 4 * Ny), Found: $(count_wedge[])")
+  end
+  println("\n")
   
-  # # Add edge chemical potential to prevent the hole being trapped on the edge of the cylinder
-  # if abs(P) > 1e-8
-  #   for site in edge_sites
-  #     os .+= P, "Ntot", site
-  #     @info "Added edge chemical potential" site=site P=P
-  #   end
-  # end
-
+  
+  # Add chemical potential on edges to prevent the hole being trapped on the edges
+  println("\nSetting up chemical potential on edge sites...")
+  if abs(P) > 1e-8
+    for site in edge_sites
+      os .+= -abs(P), "Ntot", site
+      @info "Added edge chemical potential" site=site P=-abs(P)
+    end
+  end
+  println("\n")
   
   # #*************************************************************************************************** 
   # # Adding loop perturbation terms into the Hamiltonian
