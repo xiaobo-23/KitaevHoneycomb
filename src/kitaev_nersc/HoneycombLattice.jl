@@ -71,15 +71,18 @@ const Lattice = Vector{LatticeBond}
 #     `yperiodic=true`.
 # """
 
-function honeycomb_lattice_rings(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+function honeycomb_zigzag(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 		Using the ring ordering scheme
-		Nx needs to be an even number
+		Nx is the number of sites along the x direction
+		Ny is the number of sites along the y direction
 	"""
+	
+	# Setp boundary conditions, the number of sites and the number of bonds
 	yperiodic = yperiodic && (Ny > 2)
 	N = Nx * Ny
 	Nbond = trunc(Int, 3/2 * N) - Ny + (yperiodic ? 0 : -trunc(Int, Nx / 2))
-	@show Nbond
+	# @show Nbond
   
   	latt = Lattice(undef, Nbond)
   	b = 0
@@ -175,7 +178,7 @@ end
 
 
 
-function honeycomb_lattice_rings_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
+function honeycomb_zigzag_pbc(Nx::Int, Ny::Int; yperiodic=false)::Lattice
 	"""
 	  Using the ring ordering scheme
 	  Nx needs to be an even number
