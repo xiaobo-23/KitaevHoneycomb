@@ -619,7 +619,7 @@ function honeycomb_zigzag_wedge(Nx::Int, Ny::Int; yperiodic=false)
 		if x == 1
 			n₁ = n + Ny
 			n₂ = y == 1 ? n + 2 * Ny - 1 : n + Ny - 1
-			wedge[b += 1] = y == 1 ? WedgeBond(n₂, n, n₁) : WedgeBond(n₁, n, n₂)
+			wedge[b += 1] = y == 1 ? WedgeBond(n₁, n, n₂) : WedgeBond(n₂, n, n₁)
 		end
 		
 

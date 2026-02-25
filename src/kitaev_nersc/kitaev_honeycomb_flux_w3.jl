@@ -262,6 +262,7 @@ let
   #**************************************************************************************************************** 
   """Add perturbation terms in the Hamiltonian"""
 
+  println("\nSetting up loop perturbations on the edges of the cylinder...")
   # Set up the loop operators and loop indices 
   loop_operator = ["Sz", "Sz", "Sz", "Sz", "Sz", "Sz"]      # Hard-coded for width-3 cylinders with zigzag geometry
   
@@ -269,7 +270,7 @@ let
   loop_indices_left  = hcat([collect((idx - 1) * 2 * Ny + 1 : idx * 2 * Ny) for idx in 1:3]...)'
   loop_indices_right = hcat([N + 1 .- reverse(loop_indices_left[idx, :]) for idx in 1:3]...)'
   nloops = size(loop_indices_left, 1)
-  @info loop_indices_left, loop_indices_right 
+  # @info loop_indices_left, loop_indices_right 
 
 
   if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8
@@ -291,7 +292,7 @@ let
     end
   end
 
-
+  println("\n")
   # # Generate the plaquette indices for all the plaquettes in the cylinder
   # # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
   # # plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"]) 
@@ -303,96 +304,69 @@ let
   # ]
   # plaquette_indices = PlaquetteList_RightTwist(Nx_unit, Ny_unit, "rings", false)
   # @show plaquette_indices
-  # #***************************************************************************************************************
-  # #***************************************************************************************************************  
-  
-  
-  # # ********************************************************************************************************
-  # # ********************************************************************************************************
-  # # Read in the ground-state wavefunction from a file and sample the wavefunction
-  # # ********************************************************************************************************
-  # # ********************************************************************************************************
-  # # println("*************************************************************************************")
-  # # println("Read in the wavefunction from a file and start the sampling process.")
-  # # println("*************************************************************************************")
-
-  # # file = h5open("/global/homes/x/xiaobo23/tensor_networks/QSL/t-Kitaev/AFM/Lx12/t0.01_opt1/data/2d_tK_Lx12_Ly3_kappa-0.075_doped.h5", "r")
-  # # ψ₀ = read(file, "psi", MPS)
-  # # sites = siteinds(ψ₀)
-
-  # # # Measure one-point functions of the initial state
-  # # Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
-  # # Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
-  # # Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
-  # # Sy₀ = 0.5im * (Splus₀ - Sminus₀)
-  # # # @show Sy₀ 
-  # # Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
-  # # n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
-  # # println("")
-  # # @show sum(n₀)
-  # # # @show n₀
-  # # println("")
-
-  # # # Check if the system is properly doped before running the DMRG simulation
-  # # if abs(N - sum(n₀) - 1) > 1E-6
-  # #   error("The system is not properly doped!")
-  # # end
-  # # *****************************************************************************************************
-  # # *****************************************************************************************************
-  
-  
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************  
-  # # Set up the initial MPS and parameters for the DMRG simulation
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************
-  # # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem.
-  # # sites = siteinds("tJ", N; conserve_qns=false)
-  # sites = siteinds("tJ", N; conserve_nf=true)
-
-  # # Initialize wavefunction to a random MPS of bond-dimension 10 with same quantum number as `state`
-  # # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]
-  # state = []
-  # hole_idx = 30
-  # @assert 1 <= hole_idx <= N "hole_idx = $hole_idx out of bounds (1:N = 1:$N)"
-  # for (idx, n) in enumerate(1 : N)
-  #   if n == hole_idx
-  #     push!(state, "Emp")
-  #   else
-  #     if isodd(idx)
-  #       push!(state, "Up")
-  #     else
-  #       push!(state, "Dn")
-  #     end
-  #   end
-  # end
-  # @assert count(==("Emp"), state) == 1 "Initial state must contain exactly one hole"
-  # @show "Initial state" state
-  # ψ₀ = randomMPS(sites, state, 10)
-  
-
-  # # Set up the Hamiltonian as an MPO
-  # H = MPO(os, sites)
-  
-  # # Measure one-point functions of the initial state
-  # Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
-  # Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
-  # Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
-  # Sy₀ = 0.5im * (Splus₀ - Sminus₀)
-  # Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
-  
-  # n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
-  # println("")
-  # @show sum(n₀)
-  # println("")
-  
-  # # Check if the system is properly doped before running the DMRG simulation
-  # if abs(N - sum(n₀) - 1) > 1e-6
-  #   error("The system is not properly doped!")
-  # end 
-  # #********************************************************************************************************
-  # #********************************************************************************************************
+  #**************************************************************************************************************** 
+  #****************************************************************************************************************  
  
+  
+
+
+
+  
+  
+  #**************************************************************************************************************** 
+  """
+    Setting up the initial state and the Hamiltonian as an MPO for the DMRG simulation
+  """
+  
+  # """Read in the wavefunction from a file and start the DMRG process"""
+  # println(header)
+  # println("Read in the wavefunction from a file and start the DMRG process")
+  # println(header, "\n")
+
+  # file = h5open("data/input.h5", "r")
+  # ψ₀ = read(file, "psi", MPS)
+  # sites = siteinds(ψ₀)
+
+  
+  
+  """Set up the initial wavefunction as a random MPS"""
+  println(header)
+  println("Set up the initial wavefunction as a random MPS")
+  println(header, "\n")
+  # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
+  # sites = siteinds("tJ", N; conserve_qns=false)
+  sites = siteinds("tJ", N; conserve_nf=true)
+
+  # Set up the initial state of a random MPS with bond dimension 10
+  # state = [isodd(n) ? "Up" : "Dn" for n in 1:N]   # Half-filling without doping
+  hole_idx = div(N, 2)                              # Doping one hole at the center of the cylinder
+  state = [n == hole_idx ? "Emp" : isodd(n) ? "Up" : "Dn" for n in 1:N]
+  @assert count(==("Emp"), state) == 1 "Initial state must contain exactly one hole"
+  
+  
+  """Initialize the wavefunction as a random MPS"""
+  ψ₀ = randomMPS(sites, state, 10)
+  
+
+  """Intiialize the Hamiltonian as an MPO"""
+  H = MPO(os, sites)
+  
+  # Measure one-point functions of the initial state
+  Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
+  Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
+  Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
+  Sy₀ = 0.5im * (Splus₀ - Sminus₀)
+  Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
+  
+  n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
+  # Validate if the initial state is properly doped before running the DMRG simulation
+  if abs(N - sum(n₀) - 1) > 1e-6
+    error("The system is not properly doped!")
+  end 
+  #**************************************************************************************************************** 
+  #****************************************************************************************************************  
+ 
+  
 
   # #******************************************************************************************************
   # #******************************************************************************************************
