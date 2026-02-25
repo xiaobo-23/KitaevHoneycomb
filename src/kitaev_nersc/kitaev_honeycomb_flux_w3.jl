@@ -586,7 +586,7 @@ let
         n₁₂ = n₁₁ + Ny
       else
         if y_coordinate == 1
-          n₁ = center - Ny + 1
+          n₁ = center + Ny - 1
           n₂ = n₁ - 2 * Ny + 1
         else
           n₁ = center - 1
@@ -644,8 +644,8 @@ let
     ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
     ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
     ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"]]
-
-
+    
+    
     # Generate the signs for each term in the order parameter based on the count of "S-" operators 
     # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
     sign_structure = configure_signs(order_string)
@@ -660,9 +660,10 @@ let
     
     
     for (idx1, tmp) in enumerate(eachrow(extended_loops))
-      @show idx1, tmp
-      for idx2 in 1 : size(order_string, 1)
+      for idx2 in 1 : length(order_string)
         operator = order_string[idx2]
+        
+        
         os_order = OpSum()
         os_order +=  "Ntot", centers[idx1], 
           operator[1], tmp[1], 
@@ -700,61 +701,60 @@ let
     end
   end
 
-  println("\nThe values of the order parameter(s) are:")
-  for (idx, tmp) in enumerate(order_normalized)
-    @show tmp
-  end
+  # println("\nThe values of the order parameter(s) are:")
+  # for (idx, tmp) in enumerate(order_normalized)
+  #   @show tmp
+  # end
 
-  for (idx, tmp) in enumerate(order)
-    @show tmp
-  end
+  # for (idx, tmp) in enumerate(order)
+  #   @show tmp
+  # end
   println("\n")
   #**************************************************************************************************************** 
   #****************************************************************************************************************  
 
 
 
-  # # # Print out useful information of physical quantities
-  # # println("")
-  # # println("Visualize the optimization history of the energy and bond dimensions:")
-  # # @show custom_observer.ehistory_full
-  # # @show custom_observer.ehistory
-  # # @show custom_observer.chi
-  # # # @show number_of_bonds, energy / number_of_bonds
-  # # # @show N, energy / N
-  # # println("")
 
-  # # Check the variance of the energy
+  #**************************************************************************************************************** 
+  """
+    Print out useful information of physical quantities and save the data to a file
+  """
+  
+  println("\nCheck optimization history of the energy and bond dimensions:")
+  @show custom_observer.ehistory_full
+  @show custom_observer.ehistory
+  @show custom_observer.chi
+  println("\n")
+
+
+  """Compute the variance of the energy to check if the obtained wavefunction is close to an eigenstate"""
   # @timeit time_machine "compaute the variance" begin
   #   H2 = inner(H, ψ, H, ψ)
   #   E₀ = inner(ψ', H, ψ)
   #   variance = H2 - E₀^2
   # end
-  # println("")
-  # @show E₀
-  # println("Variance of the energy is $variance")
-  # println("")
-  
-  # println("")
-  # println("Eigenvalues of the plaquette operator:")
-  # @show plaquette_eigenvalues
-  # println("")
+  # println("\nEnergy of the obtained state is: $E₀")
+  # println("\nVariance of the energy is $variance")
+  # println("\n")
 
-  # print("")
-  # println("Eigenvalues of the loop operator(s):")
-  # @show yloop_eigenvalues
-  # @show yloop_eigenvalues_symmetric
-  # println("")
 
-  # # # println("")
-  # # # println("Eigenvalues of the twelve-point correlator near the first vacancy:")
-  # # # @show order_parameter
-  # # # println("")
+  println("\nExpectation values of the plaquette operators:")
+  @show plaquette_eigenvalues
+  println("\n")
 
   
+  println("\nExpectation values of the loop operators:")
+  @show yloop_eigenvalues
+  println("\n")
+
   
-
-
+  println("\nExpectation values of the order parameter(s):")
+  @show order_normalized
+  println("\n")
+  #**************************************************************************************************************** 
+  #****************************************************************************************************************  
+  
 
   # @show time_machine
   # output_filemane = "data/output"
