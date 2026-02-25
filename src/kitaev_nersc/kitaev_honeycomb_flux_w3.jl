@@ -2,6 +2,7 @@
 # Simulate the Kitaev model on a 2D honeycomb lattice with zigzag geometry using DMRG
 # Introduce loop perturbations on edges of the cylinder & string pontential
 
+
 using ITensors
 using ITensorMPS
 using HDF5
@@ -46,6 +47,9 @@ const lambda₂ = -64.0                              # Loop perturbation (right 
 @info "Hamiltonian parameters" Jx Jy Jz kappa t P lambda₁ lambda₂
 
 
+
+@show sign(lambda₁), sign(lambda₂)
+
 # Validate parameter ranges
 @assert abs(Jx) > 0 && abs(Jy) > 0 && abs(Jz) > 0  "Kitaev couplings must be non-zero"
 @assert abs(lambda₁) > 0 && abs(lambda₂) > 0       "Loop perturbation strengths must be non-zero"
@@ -59,6 +63,11 @@ const y_periodic = true
 # Timing and profiling
 const time_machine = TimerOutput()
 
+
+# # Define the function to determine the correct sign of each term used in multi-point correlators
+# function configure_signs(input_string)
+#   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+# end
 
 
 
@@ -438,7 +447,6 @@ let
     error("Doping validation failed! Expected exactly 1 hole, found $(n_holes) holes (total electrons: $(total_electrons))")
   end
   
-
   
   """Measure spin-spin correlation functions (two-point functions)"""
   @timeit time_machine "two-point functions" begin
@@ -448,7 +456,6 @@ let
   end
 
 
-  
   """Measure loop operators"""
   @timeit time_machine "loop operators" begin
     loop_indices = [collect((idx - 1) * 2 * Ny + 1 : idx * 2 * Ny) for idx in 1:Nx_unit]
@@ -469,7 +476,6 @@ let
     end
   end
   @show yloop_eigenvalues
-
 
 
   """Measure eigenvalues of the plaquette operators"""
@@ -535,203 +541,180 @@ let
   @show plaquette_eigenvalues
 
 
+  """Measure eigenvalues of the order parameter(s)"""
+  @timeit time_machine "order parameter(s)" begin
+    # Define the central sites, excluding a margin of 2*Ny sites from both boundaries
+    centers = collect(2 * Ny + 1 : N - 2 * Ny - 1)
+    println("\nThe central sites used for measuring the order parameters are:")
+    @show centers
+    
+
+    extended_loops = zeros(Int32, length(centers), 12)
+    for (idx, center) in enumerate(centers)
+      x_coordinate = div(center - 1, Ny) + 1  
+      y_coordinate = mod(center - 1, Ny) + 1
+
+      if isodd(x_coordinate)
+        if y_coordinate == Ny 
+          n₁ = center - 2
+          n₂ = n₁ + 2 * Ny - 1
+        else
+          n₁ = center + 1
+          n₂ = n₁ + Ny - 1
+        end
+        n₃ = n₂ + Ny
+        if y_coordinate == 1
+          n₄ = n₃ + 2 * Ny - 1
+        else
+          n₄ = n₃ + Ny - 1
+        end
+        n₅ = n₄ - Ny
+        n₆ = n₅ - Ny
+        n₇ = n₆ - Ny 
+        n₈ = n₇ - Ny
+        if y_coordinate == 1
+          n₉ = n₈ - 2 * Ny + 1
+        else
+          n₉ = n₈ - Ny + 1
+        end
+        n₁₀ = n₉ + Ny 
+        if y_coordinate == Ny 
+          n₁₁ = n₁₀ - 2 * Ny + 1
+        else
+          n₁₁ = n₁₀ - Ny + 1
+        end
+        n₁₂ = n₁₁ + Ny
+      else
+        if y_coordinate == 1
+          n₁ = center - Ny + 1
+          n₂ = n₁ - 2 * Ny + 1
+        else
+          n₁ = center - 1
+          n₂ = n₁ - Ny + 1
+        end
+        n₃ = n₂ - Ny 
+
+        if y_coordinate == Ny 
+          n₄ = n₃ - 2 * Ny + 1
+        else
+          n₄ = n₃ - Ny + 1
+        end
+        n₅ = n₄ + Ny 
+        n₆ = n₅ + Ny 
+        n₇ = n₆ + Ny
+        n₈ = n₇ + Ny
+
+        if y_coordinate == Ny 
+          n₉ = n₈ + 2 * Ny - 1
+        else
+          n₉ = n₈ + Ny - 1
+        end
+        n₁₀ = n₉ - Ny
+
+        if y_coordinate == 1
+          n₁₁ = n₁₀ + 2 * Ny - 1
+        else
+          n₁₁ = n₁₀ + Ny - 1
+        end
+        n₁₂ = n₁₁ - Ny
+      end
 
 
-  # # Set up and measure the eigenvalues of the order parameter(s)
-  # # Define the central sites, excluding a margin of 2*Ny sites from both boundaries
-  # centers = collect((2 * Ny + 2):(N - 2 * Ny - 1))
-  # @info "Central sites selected for measurement" centers=centers
-  
-  # order_loops = []
-  # for center in centers
-  #   tmp_x = div(center - 1, Ny) + 1
-  #   tmp_y = mod(center - 1, Ny) + 1
-  #   tmp_loop = []
+      extended_loops[idx, :] = [n₁, n₂, n₃, n₄, n₅, n₆, n₇, n₈, n₉, n₁₀, n₁₁, n₁₂]
+    end
+    println("\nThe extended loop indices used for measuring the order parameters are:")
+    @show extended_loops
+    println("\n")
 
-  #   if isodd(tmp_x)
-  #     if tmp_y == 1
-  #       append!(tmp_loop, [
-  #         center + 1,
-  #         center + Ny,
-  #         center + 2 * Ny,
-  #         center + 2 * Ny - 1,
-  #         center + Ny - 1,
-  #         center - 1,
-  #         center - Ny - 1,
-  #         center - 2 * Ny - 1,
-  #         center - 2 * Ny,
-  #         center - Ny,
-  #         center - 2 * Ny + 1, 
-  #         center - Ny + 1
-  #       ])
-  #     elseif tmp_y == Ny
-  #       append!(tmp_loop, [
-  #         center + Ny + 1,
-  #         center + Ny,
-  #         center + 2 * Ny,
-  #         center + 2 * Ny + 2,
-  #         center + 2 * Ny - 1,
-  #         center + Ny - 1,
-  #         center - 1,
-  #         center - Ny - 1,
-  #         center - 2 * Ny,
-  #         center - Ny,
-  #         center - Ny + 1,
-  #         center + 1
-  #       ])
-  #     else
-  #       # Construct the loop for odd x and tmp_y ≠ 1 and tmp_y ≠ Ny
-  #       append!(tmp_loop, [
-  #         center + 1,
-  #         center + Ny,
-  #         center + 2 * Ny,
-  #         center + 2 * Ny + 2,
-  #         center + 2 * Ny - 1,
-  #         center + Ny - 1,
-  #         center - 1,
-  #         center - Ny - 1,
-  #         center - 2 * Ny,
-  #         center - Ny,
-  #         center - 2 * Ny + 1,
-  #         center - Ny + 1
-  #       ])
-  #     end
-  #   else
-  #     if tmp_y == 1
-  #       # Construct the loop for even x and tmp_y == 1
-  #       append!(tmp_loop, [
-  #         center - Ny - 1,
-  #         center - Ny,
-  #         center - 2 * Ny,
-  #         center - 3 * Ny + 1,
-  #         center - 2 * Ny + 1,
-  #         center - Ny + 1,
-  #         center + 1,
-  #         center + Ny + 1,
-  #         center + 2 * Ny,
-  #         center + Ny,
-  #         center + Ny - 1,
-  #         center - 1
-  #       ])
-  #     elseif tmp_y == Ny
-  #       # Construct the loop for even x and tmp_y == Ny
-  #       append!(tmp_loop, [
-  #         center - 1,
-  #         center - Ny,
-  #         center - 2 * Ny,
-  #         center - 2 * Ny + 1,
-  #         center - Ny + 1,
-  #         center + 1,
-  #         center + Ny + 1,
-  #         center + 2 * Ny + 1,
-  #         center + 2 * Ny,
-  #         center + Ny,
-  #         center + 2 * Ny - 1,
-  #         center + Ny - 1
-  #       ]) 
-  #     else
-  #       # Construct the loop for even x and tmp_y != 1 and tmp_y != Ny
-  #       append!(tmp_loop, [
-  #         center - 1,
-  #         center - Ny,
-  #         center - 2 * Ny,
-  #         center - 3 * Ny + 1,
-  #         center - 2 * Ny + 1,
-  #         center - Ny + 1,
-  #         center + 1,
-  #         center + Ny + 1,
-  #         center + 2 * Ny,
-  #         center + Ny,
-  #         center + 2 * Ny - 1,
-  #         center + Ny - 1
-  #       ])
-  #     end
-  #   end
-  #   push!(order_loops, tmp_loop)
-  # end
-  
-  # for idx in eachindex(order_loops)
-  #   @show centers[idx], order_loops[idx]
-  # end
+    
+    # Set up the operator string for measuring the order parameters
+    order_string = [["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
+    ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"]]
 
-  # function configure_signs(input_string)
-  #   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
-  # end
 
-  # order_string = [["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S+", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S+"],
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S+", "S-", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S+", "Sx", "Sz", "Sz", "Sz", "S-"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S+"], 
-  # ["Sx", "Sx", "Sx", "Sz", "S-", "S-", "S-", "Sx", "Sz", "Sz", "Sz", "S-"]]
-  
-  # # Reference sign structure for the order parameter 
-  # # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
-  # sign = configure_signs(order_string)
-  # @show sign
+    # Generate the signs for each term in the order parameter based on the count of "S-" operators 
+    # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
+    sign_structure = configure_signs(order_string)
+    println("\nThe signs for each term in the order parameter are:")
+    @show sign_structure
+    println("\n")
 
-  # @timeit time_machine "order parameter(s)" begin
-  #   order_parameter = zeros(Float64, length(order_loops))
-  #   order₀ = zeros(Float64, length(order_loops))
+    
+    # Measure the order parameters based on the extended loop indices and the operator string
+    order_normalized = zeros(Float64, length(extended_loops))
+    order = zeros(Float64, length(extended_loops))
+    
+    @show size(centers)
+    @show size(extended_loops)
 
-  #   for idx1 in 1 : size(order_loops)[1]
-  #     loop = order_loops[idx1]
-  #     for idx2 in 1 : size(order_string)[1]
-  #       operator = order_string[idx2]
-  #       os_order = OpSum()
-  #       os_order +=  "Ntot", centers[idx1], 
-  #         operator[1], loop[1], 
-  #         operator[2], loop[2], 
-  #         operator[3], loop[3], 
-  #         operator[4], loop[4], 
-  #         operator[5], loop[5], 
-  #         operator[6], loop[6],
-  #         operator[7], loop[7],
-  #         operator[8], loop[8],
-  #         operator[9], loop[9],
-  #         operator[10], loop[10],
-  #         operator[11], loop[11],
-  #         operator[12], loop[12]
-  #       W_order = MPO(os_order, sites)
+    for (idx1, tmp) in enumerate(eachrow(extended_loops))
+      @show idx1, tmp
+      for idx2 in 1 : size(order_string, 1)
+        operator = order_string[idx2]
+        os_order = OpSum()
+        os_order +=  "Ntot", centers[idx1], 
+          operator[1], tmp[1], 
+          operator[2], tmp[2], 
+          operator[3], tmp[3], 
+          operator[4], tmp[4], 
+          operator[5], tmp[5], 
+          operator[6], tmp[6],
+          operator[7], tmp[7],
+          operator[8], tmp[8],
+          operator[9], tmp[9],
+          operator[10], tmp[10],
+          operator[11], tmp[11],
+          operator[12], tmp[12]
+        W_order = MPO(os_order, sites)
 
-  #       os_order_identity = OpSum()
-  #       os_order_identity += operator[1], loop[1], 
-  #         operator[2], loop[2], 
-  #         operator[3], loop[3], 
-  #         operator[4], loop[4], 
-  #         operator[5], loop[5], 
-  #         operator[6], loop[6],
-  #         operator[7], loop[7],
-  #         operator[8], loop[8],
-  #         operator[9], loop[9],
-  #         operator[10], loop[10],
-  #         operator[11], loop[11],
-  #         operator[12], loop[12]
-  #       W_order_identity = MPO(os_order_identity, sites)
+        os_order_identity = OpSum()
+        os_order_identity += operator[1], tmp[1], 
+          operator[2], tmp[2], 
+          operator[3], tmp[3], 
+          operator[4], tmp[4], 
+          operator[5], tmp[5], 
+          operator[6], tmp[6],
+          operator[7], tmp[7],
+          operator[8], tmp[8],
+          operator[9], tmp[9],
+          operator[10], tmp[10],
+          operator[11], tmp[11],
+          operator[12], tmp[12]
+        W_order_identity = MPO(os_order_identity, sites)
 
-  #       order_parameter[idx1] += (1/2)^4 * 2^12 * sign[idx2] * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
-  #       order₀[idx1] += (1/2)^4 * 2^12 * sign[idx2] * real(inner(ψ', W_order, ψ))
-  #     end
-  #   end
-  # end
+        order_normalized[idx1] += (1/2)^4 * 2^12 * sign_structure[idx2] * (real(inner(ψ', W_order_identity, ψ)) - real(inner(ψ', W_order, ψ)))
+        order[idx1] += (1/2)^4 * 2^12 * sign_structure[idx2] * real(inner(ψ', W_order, ψ))
+      end
+    end
+  end
 
-  # for idx in eachindex(order_parameter)
-  #   @show order_parameter[idx]
-  # end
+  println("\nThe values of the order parameter(s) are:")
+  for (idx, tmp) in enumerate(order_normalized)
+    @show tmp
+  end
 
-  # for idx in eachindex(order₀)
-  #   @show order₀[idx]
-  # end
+  for (idx, tmp) in enumerate(order)
+    @show tmp
+  end
+  println("\n")
+  #**************************************************************************************************************** 
+  #****************************************************************************************************************  
+
+
 
   # # # Print out useful information of physical quantities
   # # println("")
@@ -770,31 +753,33 @@ let
   # # # @show order_parameter
   # # # println("")
 
-  # # # @show time_machine
-  # # h5open("/pscratch/sd/x/xiaobo23/TensorNetworks/non_abelian_anyons/t-Kitaev/FM/W3/Lx10/perturbation/WL+1_WR+1/kappa-0.4/data/2d_tK_Lx$(Nx_unit)_Ly$(Ny_unit)_t$(t).h5", "w") do file
-  # #   write(file, "psi", ψ)
-  # #   write(file, "NormalizedE0", energy / number_of_bonds)
-  # #   write(file, "E0", energy)
-  # #   write(file, "E0variance", variance)
-  # #   write(file, "Ehist", custom_observer.ehistory)
-  # #   write(file, "Bond", custom_observer.chi)
-  # #   # write(file, "Entropy", SvN)
-  # #   write(file, "Sx0", Sx₀)
-  # #   write(file, "Sx",  Sx)
-  # #   write(file, "Cxx", xxcorr)
-  # #   write(file, "Sy0", Sy₀)
-  # #   write(file, "Sy", Sy)
-  # #   # # write(file, "Cyy", yycorr)
-  # #   write(file, "Sz0", Sz₀)
-  # #   write(file, "Sz",  Sz)
-  # #   write(file, "Czz", zzcorr)
-  # #   write(file, "N0", n₀)
-  # #   write(file, "N", n)
-  # #   write(file, "Plaquette", plaquette_eigenvalues)
-  # #   write(file, "Loop", yloop_eigenvalues)
-  # #   write(file, "LoopSymmetric", yloop_eigenvalues_symmetric)
-  # #   write(file, "OrderParameter", order_parameter)
-  # # end
+  
+  
+
+
+
+  # @show time_machine
+  # output_filemane = "data/output"
+  # h5open(output_filemane, "w") do file
+  #   write(file, "psi", ψ)
+  #   write(file, "E0", energy)
+  #   # write(file, "E0variance", variance)
+  #   write(file, "Ehist", custom_observer.ehistory)
+  #   write(file, "Bond", custom_observer.chi)
+  #   write(file, "Sx0", Sx₀)
+  #   write(file, "Sx",  Sx)
+  #   write(file, "Cxx", xxcorr)
+  #   write(file, "Sy0", Sy₀)
+  #   write(file, "Sy", Sy)
+  #   write(file, "Sz0", Sz₀)
+  #   write(file, "Sz",  Sz)
+  #   write(file, "Czz", zzcorr)
+  #   write(file, "N0", n₀)
+  #   write(file, "N", n)
+  #   write(file, "Plaquette", plaquette_eigenvalues)
+  #   write(file, "Loop", yloop_eigenvalues)
+  #   write(file, "OrderParameter", order_normalized)
+  # end
 
   
   return
