@@ -311,12 +311,12 @@ let
       x_unit = div(n - 1, 2 * Ny) + 1 - div(Nx_unit + 1, 2)
       # @show n, x_unit
 
-      if isodd(x_coordinate)
+      if iseven(x_coordinate)
         os .+= 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007, "Ntot", n
         @show n, 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007
       else
-        os .+= -0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007, "Ntot", n
-        @show n, -0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007
+        os .+= 0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007, "Ntot", n
+        @show n, 0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007
       end
     end
   end
@@ -658,9 +658,7 @@ let
     order_normalized = zeros(Float64, length(extended_loops))
     order = zeros(Float64, length(extended_loops))
     
-    @show size(centers)
-    @show size(extended_loops)
-
+    
     for (idx1, tmp) in enumerate(eachrow(extended_loops))
       @show idx1, tmp
       for idx2 in 1 : size(order_string, 1)
