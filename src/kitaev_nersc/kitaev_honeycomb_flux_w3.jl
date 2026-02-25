@@ -293,24 +293,10 @@ let
   end
 
   println("\n")
-  # # Generate the plaquette indices for all the plaquettes in the cylinder
-  # # plaquette_operator = Vector{String}(["iY", "Z", "X", "X", "Z", "iY"])
-  # # plaquette_operator = Vector{String}(["Z", "iY", "X", "X", "iY", "Z"]) 
-  # plaquette_operator = [
-  #   ["Sz", "S+", "Sx", "Sx", "S+", "Sz"],
-  #   ["Sz", "S+", "Sx", "Sx", "S-", "Sz"],
-  #   ["Sz", "S-", "Sx", "Sx", "S-", "Sz"],
-  #   ["Sz", "S-", "Sx", "Sx", "S+", "Sz"]
-  # ]
-  # plaquette_indices = PlaquetteList_RightTwist(Nx_unit, Ny_unit, "rings", false)
-  # @show plaquette_indices
   #**************************************************************************************************************** 
   #****************************************************************************************************************  
  
   
-
-
-
   
   
   #**************************************************************************************************************** 
@@ -369,6 +355,7 @@ let
  
   
 
+
   #**************************************************************************************************************** 
   """
     Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
@@ -402,14 +389,13 @@ let
 
 
 
-
   #**************************************************************************************************************** 
   """
     Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
   """
 
   println(header)
-  println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
+  println("Measure physical observables based on the ground-state wavefunction")
   println(header, "\n")
   
   
@@ -464,38 +450,73 @@ let
       yloop_eigenvalues[idx] = 2^6 * real(inner(ψ', Wl, ψ))
     end
   end
-  @info "Loop operator eigenvalues" yloop_eigenvalues
+  @show yloop_eigenvalues
 
 
 
-  # # Measure the eigenvalues of plaquette operators
-  # # Decompose the plaquette operators into four terms for tJ type of sites
-  # @timeit time_machine "plaquette operators" begin
-  #   nplaquettes = size(plaquette_indices, 1)
-  #   plaquette_eigenvalues = zeros(Float64, nplaquettes)
+  """Measure eigenvalues of the plaquette operators"""
+  @timeit time_machine "plaquette operators" begin
+    # Hard-code the plaquette operators 
+    plaquette_operator = [
+      ["Sz", "S+", "Sx", "Sz", "S+", "Sx"],
+      ["Sz", "S+", "Sx", "Sz", "S-", "Sx"],
+      ["Sz", "S-", "Sx", "Sz", "S-", "Sx"],
+      ["Sz", "S-", "Sx", "Sz", "S+", "Sx"]
+    ]
+
+    # Generate the indices for each plaquette on the honeycomb lattice
+    plaquette_indices = zeros(Int32, (Nx_unit - 1) * Ny_unit, 6)
+    index_list = [(idx - 1) * 2 * Ny + j for idx in 1:Nx_unit-1 for j in 1:Ny_unit]
+    # @show index_list
+
+    for (idx, tmp) in enumerate(index_list)
+      y_coordinate = mod(tmp - 1, Ny) + 1
+
+      n₁ = tmp
+      n₂ = n₁ + Ny
+      n₃ = n₂ + Ny
+      if y_coordinate == 1
+        n₄ = tmp + 4 * Ny - 1
+      else
+        n₄ = tmp + 3 * Ny - 1
+      end
+      n₅ = n₄ - Ny
+      n₆ = n₅ - Ny 
+
+      plaquette_indices[idx, :] = [n₁, n₂, n₃, n₄, n₅, n₆]
+    end
     
-  #   for idx1 in 1:nplaquettes
-  #     indices  = plaquette_indices[idx1, :]
+    # for (idx, plaqutte) in enumerate(plaquette_indices)
+    #   @info "Plaquette $idx" indices=plaqutte
+    # end
+
+
+    nplaquettes = size(plaquette_indices, 1)
+    plaquette_eigenvalues = zeros(Float64, nplaquettes)
+    
+    for idx1 in 1:nplaquettes
+      tmp  = plaquette_indices[idx1, :]
       
-  #     for idx2 in 1:4
-  #       operator = plaquette_operator[idx2]
-  #       # @show operator, indices
-  #       os_w = OpSum()
-  #       os_w += operator[1], indices[1], 
-  #         operator[2], indices[2], 
-  #         operator[3], indices[3], 
-  #         operator[4], indices[4], 
-  #         operator[5], indices[5], 
-  #         operator[6], indices[6]
-  #       W = MPO(os_w, sites)
-  #       # @show (-1.0)^idx2 * real(inner(ψ', W, ψ)) * 2^6
-  #       plaquette_eigenvalues[idx1] += (-1.0)^idx2 * real(inner(ψ', W, ψ))
-  #     end
-  #     plaquette_eigenvalues[idx1] *= 2^6 / 4
-  #     # @show inner(ψ', W, ψ) / inner(ψ', ψ)
-  #   end
-  # end
-  # # @show plaquette_eigenvalues
+      for idx2 in 1:4
+        operator = plaquette_operator[idx2]
+       
+        os_w = OpSum()
+        os_w += operator[1], tmp[1], 
+          operator[2], tmp[2], 
+          operator[3], tmp[3], 
+          operator[4], tmp[4], 
+          operator[5], tmp[5], 
+          operator[6], tmp[6]
+        W = MPO(os_w, sites)
+       
+        plaquette_eigenvalues[idx1] += (-1.0)^idx2 * real(inner(ψ', W, ψ))
+      end
+      plaquette_eigenvalues[idx1] *= 2^6 / 4
+    end
+  end
+  @show plaquette_eigenvalues
+
+
 
 
   # # Set up and measure the eigenvalues of the order parameter(s)
