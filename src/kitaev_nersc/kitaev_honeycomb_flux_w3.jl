@@ -318,21 +318,22 @@ let
     Setting up the initial state and the Hamiltonian as an MPO for the DMRG simulation
   """
   
-  # """Read in the wavefunction from a file and start the DMRG process"""
-  # println(header)
-  # println("Read in the wavefunction from a file and start the DMRG process")
-  # println(header, "\n")
+  println(header)
+  println("Initialize the starting MPS for the DMRG simulation")
+  println(header, "\n")
 
+
+  
+  # """Read in the wavefunction from a file and start the DMRG process"""
+  # println("Read in the wavefunction from a file and start the DMRG process, "\n")
   # file = h5open("data/input.h5", "r")
   # ψ₀ = read(file, "psi", MPS)
   # sites = siteinds(ψ₀)
 
   
-  
+
   """Set up the initial wavefunction as a random MPS"""
-  println(header)
-  println("Set up the initial wavefunction as a random MPS")
-  println(header, "\n")
+  println("Set up the initial wavefunction as a random MPS", "\n")
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
   # sites = siteinds("tJ", N; conserve_qns=false)
   sites = siteinds("tJ", N; conserve_nf=true)
@@ -355,7 +356,7 @@ let
   Sx₀ = expect(ψ₀, "Sx", sites = 1 : N)
   Splus₀  = expect(ψ₀, "S+", sites = 1 : N)
   Sminus₀ = expect(ψ₀, "S-", sites = 1 : N)
-  Sy₀ = 0.5im * (Splus₀ - Sminus₀)
+  Sy₀ = 0.5im * (Sminus₀ - Splus₀)
   Sz₀ = expect(ψ₀, "Sz", sites = 1 : N)
   
   n₀ = expect(ψ₀, "Ntot", sites = 1 : N)
@@ -368,104 +369,103 @@ let
  
   
 
-  # #******************************************************************************************************
-  # #******************************************************************************************************
-  # # Run the DMRG simulation and obtain the ground state wavefunction
-  # #******************************************************************************************************
-  # #******************************************************************************************************
-  # # Set up the parameters including bond dimensions and truncation error
-  # nsweeps = 20
-  # maxdim  = [20, 100, 200, 500, 800, 1000, 1500, 5000]
-  # cutoff  = [1E-10]
-  # eigsolve_krylovdim = 50
+  #**************************************************************************************************************** 
+  """
+    Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
+  """
+
+  println(header)
+  println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
+  println(header, "\n")
+
+  # Set up the parameters including bond dimensions and truncation error
+  nsweeps = 2
+  maxdim  = [20, 100, 500, 1500, 3500]
+  cutoff  = [1E-10]
+  eigsolve_krylovdim = 50
   
   # # Add noise terms to prevent DMRG from getting stuck in a local minimum
   # noise = [1E-6, 1E-7, 0.0]
 
-  # # Construct a custom observer and stop the DMRG calculation early if criteria are met
-  # # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
-  # custom_observer = CustomObserver()
-  # @show custom_observer.etolerance
-  # @show custom_observer.minsweeps
-  # @timeit time_machine "dmrg simulation" begin
-  #   energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
-  # end
-  # #*****************************************************************************************************
-  # #*****************************************************************************************************
+  # Construct a custom observer and stop the DMRG calculation early if criteria are met
+  # custom_observer = DMRGObserver(; energy_tol=1E-9, minsweeps=2, energy_type=Float64)
+  custom_observer = CustomObserver()
+  @show custom_observer.etolerance
+  @show custom_observer.minsweeps
+  @timeit time_machine "dmrg simulation" begin
+    energy, ψ = dmrg(H, ψ₀; nsweeps, maxdim, cutoff, eigsolve_krylovdim, observer = custom_observer)
+  end
+  println("\n")
+  #**************************************************************************************************************** 
+  #****************************************************************************************************************  
+ 
 
-  # #******************************************************************************************************
-  # #******************************************************************************************************
-  # # Take measurements of the wavefunction after the DMRG simulation
-  # #******************************************************************************************************
-  # #******************************************************************************************************
-  # # Measure local observables (one-point functions)
-  # @timeit time_machine "one-point functions" begin
-  #   Sx = expect(ψ, "Sx", sites = 1 : N)
-  #   Splus  = expect(ψ, "S+", sites = 1 : N)
-  #   Sminus = expect(ψ, "S-", sites = 1 : N)
-  #   Sy = 0.5im * (Splus - Sminus)
-  #   Sz = expect(ψ, "Sz", sites = 1 : N)
-  #   n = expect(ψ, "Ntot", sites = 1 : N)
-  # end
 
-  # # Check if the system is properly doped after the DMRG simulation
-  # println("")
-  # @show sum(n)
-  # @show n
-  # println("")
 
-  # if abs(N - sum(n) - 1) > 1e-6
-  #   error("The system is not properly doped!")
-  # end
+
+  #**************************************************************************************************************** 
+  """
+    Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
+  """
+
+  println(header)
+  println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
+  println(header, "\n")
   
-  # # Measure spin correlation functions (two-point functions)  
-  # @timeit time_machine "two-point functions" begin
-  #   xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
-  #   zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
-  #   # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
-  # end
+  
+  """Measure local observables (one-point functions)"""
+  @timeit time_machine "one-point functions" begin
+    Sx = expect(ψ, "Sx", sites = 1 : N)
+    Splus  = expect(ψ, "S+", sites = 1 : N)
+    Sminus = expect(ψ, "S-", sites = 1 : N)
+    Sy = 0.5im * (Sminus - Splus)
+    Sz = expect(ψ, "Sz", sites = 1 : N)
+    n = expect(ψ, "Ntot", sites = 1 : N)
+  end
 
-  # # Measure the loop operators along the y direction of the cylinder
-  # # The number of terms in the loop operator depends on the width of the cylinder 
-  # @timeit time_machine "loop operators" begin
-  #   yloop_eigenvalues = zeros(Float64, nloops)
-  #   yloop_eigenvalues_symmetric = zeros(Float64, nloops)
+  # Validate electron density after DMRG simulation
+  println("\nThe electron density at each site is:")
+  @show n
+  println("\n")
+  
+  total_electrons = sum(n)
+  n_holes = N - total_electrons
+  if abs(n_holes - 1) > 1e-6
+    error("Doping validation failed! Expected exactly 1 hole, found $(n_holes) holes (total electrons: $(total_electrons))")
+  end
+  
 
-  #   for idx in 1 : nloops
-  #     indices = loop_indices[idx, :]
-  #     indices_symmetric = loop_indices_symmetric[idx, :]  
+  
+  """Measure spin-spin correlation functions (two-point functions)"""
+  @timeit time_machine "two-point functions" begin
+    xxcorr = correlation_matrix(ψ, "Sx", "Sx", sites = 1 : N)
+    zzcorr = correlation_matrix(ψ, "Sz", "Sz", sites = 1 : N)
+    # yycorr = correlation_matrix(ψ, "Sy", "Sy", sites = 1 : N)
+  end
 
-  #     # Construct the loop operators as MPOs and compute the eigenvalues
-  #     os_wl = OpSum()
-  #     os_wl += loop_operator[1], indices[1], 
-  #       loop_operator[2], indices[2], 
-  #       loop_operator[3], indices[3], 
-  #       loop_operator[4], indices[4], 
-  #       loop_operator[5], indices[5], 
-  #       loop_operator[6], indices[6]
-  #     Wl = MPO(os_wl, sites)
 
-  #     # The normalize factor is due to the difference between Pauli operators and spin operators
-  #     yloop_eigenvalues[idx] = real(inner(ψ', Wl, ψ))
-  #     yloop_eigenvalues[idx] *= 2^6 
+  
+  """Measure loop operators"""
+  @timeit time_machine "loop operators" begin
+    loop_indices = [collect((idx - 1) * 2 * Ny + 1 : idx * 2 * Ny) for idx in 1:Nx_unit]
+    yloop_eigenvalues = zeros(Float64, Nx_unit)
 
-  #     # Construct the loop operators as MPOs and compute the eigenvalues
-  #     os_wl_symmetric = OpSum()
-  #     os_wl_symmetric += loop_operator[1], indices_symmetric[1], 
-  #       loop_operator[2], indices_symmetric[2], 
-  #       loop_operator[3], indices_symmetric[3], 
-  #       loop_operator[4], indices_symmetric[4], 
-  #       loop_operator[5], indices_symmetric[5], 
-  #       loop_operator[6], indices_symmetric[6]
-  #     Wl_symmetric = MPO(os_wl_symmetric, sites)
+    for (idx, tmp_idx) in enumerate(loop_indices)
+      os_wl = OpSum()
+      os_wl += loop_operator[1], tmp_idx[1],
+               loop_operator[2], tmp_idx[2],
+               loop_operator[3], tmp_idx[3],
+               loop_operator[4], tmp_idx[4],
+               loop_operator[5], tmp_idx[5],
+               loop_operator[6], tmp_idx[6]
+      Wl = MPO(os_wl, sites)
 
-  #     # The normalize factor is due to the difference between Pauli operators and spin operators
-  #     yloop_eigenvalues_symmetric[idx] = real(inner(ψ', Wl_symmetric, ψ))
-  #     yloop_eigenvalues_symmetric[idx] *= 2^6       
-  #   end
-  # end
-  # # @show yloop_eigenvalues
-  # # @show yloop_eigenvalues_symmetric
+      # Normalize by 2^6 to convert from spin operators to Pauli operators
+      yloop_eigenvalues[idx] = 2^6 * real(inner(ψ', Wl, ψ))
+    end
+  end
+  @info "Loop operator eigenvalues" yloop_eigenvalues
+
 
 
   # # Measure the eigenvalues of plaquette operators
