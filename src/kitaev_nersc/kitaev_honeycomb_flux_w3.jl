@@ -42,7 +42,7 @@ const kappa = -0.4                                 # Three-spin interaction stre
 const t = 0.0                                      # Electron hopping amplitude
 const P = -10.0                                    # Chemical potential for edge sites
 const lambda₁ = 64.0                               # Loop perturbation (left edge)
-const lambda₂ = 64.0                               # Loop perturbation (right edge)
+const lambda₂ = -64.0                              # Loop perturbation (right edge)
 @info "Hamiltonian parameters" Jx Jy Jz kappa t P lambda₁ lambda₂
 
 
@@ -253,7 +253,7 @@ let
   if abs(P) > 1e-8
     for site in edge_sites
       os .+= -abs(P), "Ntot", site
-      @info "Added edge chemical potential" site=site P=-abs(P)
+      # @info "Added edge chemical potential" site=site P=-abs(P)
     end
   end
   println("\n")
@@ -275,7 +275,7 @@ let
 
   if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8
     for idx in 1 : 3
-      @info "Adding loop perturbation terms" loop_index=idx left_indices=loop_indices_left[idx, :] right_indices=loop_indices_right[idx, :]
+      # @info "Adding loop perturbation terms" loop_index=idx left_indices=loop_indices_left[idx, :] right_indices=loop_indices_right[idx, :]
       os .+= -1.0 * lambda₁, loop_operator[1], loop_indices_left[idx, 1], 
             loop_operator[2], loop_indices_left[idx, 2], 
             loop_operator[3], loop_indices_left[idx, 3], 
@@ -292,6 +292,26 @@ let
     end
   end
 
+  
+  println("\nSetting up string potential to make the electron density more symmetric...")
+  if abs(lambda₁) > 1e-8 && abs(lambda₂) > 1e-8 && sign(lambda₁) != sign(lambda₂)
+    unit_cell_reference = [tmp - div(Nx_unit + 1, 2) for tmp in 1 : Nx_unit]
+    # @show unit_cell_reference
+    for n in 1 : N 
+      x_coordinate = div(n - 1, Ny) + 1
+      x_unit = div(n - 1, 2 * Ny) + 1 - div(Nx_unit + 1, 2)
+      # @show n, x_unit
+
+      if isodd(x_coordinate)
+        os .+= 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007, "Ntot", n
+        @show n, 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007
+      else
+        os .+= -0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007, "Ntot", n
+        @show n, -0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007
+      end
+    end
+  end
+  
   println("\n")
   #**************************************************************************************************************** 
   #****************************************************************************************************************  
@@ -308,7 +328,6 @@ let
   println("Initialize the starting MPS for the DMRG simulation")
   println(header, "\n")
 
-
   
   # """Read in the wavefunction from a file and start the DMRG process"""
   # println("Read in the wavefunction from a file and start the DMRG process, "\n")
@@ -317,7 +336,6 @@ let
   # sites = siteinds(ψ₀)
 
   
-
   """Set up the initial wavefunction as a random MPS"""
   println("Set up the initial wavefunction as a random MPS", "\n")
   # Increase the maximum dimension of Krylov space used to locally solve the eigenvalues problem
