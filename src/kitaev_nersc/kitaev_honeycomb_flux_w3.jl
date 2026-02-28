@@ -64,11 +64,10 @@ const y_periodic = true
 const time_machine = TimerOutput()
 
 
-# # Define the function to determine the correct sign of each term used in multi-point correlators
-# function configure_signs(input_string)
-#   return [(-1.0)^count(==( "S-" ), row) for row in input_string]
-# end
-
+# Define the function to determine the correct sign of each term used in multi-point correlators
+function configure_signs(input_string)
+  return [(-1.0)^count(==( "S-" ), row) for row in input_string]
+end
 
 
 let
@@ -76,6 +75,7 @@ let
   println(header)
   println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
   println(header, "\n")
+
 
   #****************************************************************************************************************
   """
@@ -183,11 +183,11 @@ let
       if iseven(x_coordinate)
         os .+=  0.5im * kappa, "Sx", w.s1, "S-", w.s2, "Sz", w.s3 
         os .+= -0.5im * kappa, "Sx", w.s1, "S+", w.s2, "Sz", w.s3
-        @info "Added three-spin term" term = ("Sx", w.s1, "Sy", w.s2, "Sz", w.s3)
+        # @info "Added three-spin term" term = ("Sx", w.s1, "Sy", w.s2, "Sz", w.s3)
       else
         os .+=  0.5im * kappa, "Sz", w.s1, "S-", w.s2, "Sx", w.s3
         os .+= -0.5im * kappa, "Sz", w.s1, "S+", w.s2, "Sx", w.s3
-        @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
+        # @info "Added three-spin term" term = ("Sz", w.s1, "Sy", w.s2, "Sx", w.s3)
       end
       count_wedge[] += 1
     end
@@ -197,11 +197,11 @@ let
       if isodd(x_coordinate)
         os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
-        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+        # @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
       else
         os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
         os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        # @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
       end
       count_wedge[] += 1
     end
@@ -211,11 +211,11 @@ let
       if iseven(x_coordinate)
         os .+=  0.5im * kappa, "S-", w.s1, "Sz", w.s2, "Sx", w.s3
         os .+= -0.5im * kappa, "S+", w.s1, "Sz", w.s2, "Sx", w.s3
-        @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
+        # @info "Added three-spin term" term = ("Sy", w.s1, "Sz", w.s2, "Sx", w.s3)
       else
         os .+=  0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S-", w.s3
         os .+= -0.5im * kappa, "Sx", w.s1, "Sz", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
+        # @info "Added three-spin term" term = ("Sx", w.s1, "Sz", w.s2, "Sy", w.s3)
       end
       count_wedge[] += 1
     end
@@ -225,11 +225,11 @@ let
       if isodd(x_coordinate)
         os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
         os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        # @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
       else
         os .+=  0.5im * kappa, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
         os .+= -0.5im * kappa, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
-        @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
+        # @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
       end
       count_wedge[] += 1
     end
@@ -239,15 +239,14 @@ let
       if iseven(x_coordinate)
         os .+=  0.5im * kappa, "S-", w.s1, "Sx", w.s2, "Sz", w.s3
         os .+= -0.5im * kappa, "S+", w.s1, "Sx", w.s2, "Sz", w.s3
-        @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
+        # @info "Added three-spin term" term = ("Sy", w.s1, "Sx", w.s2, "Sz", w.s3)
       else
         os .+=  0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S-", w.s3
         os .+= -0.5im * kappa, "Sz", w.s1, "Sx", w.s2, "S+", w.s3
-        @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
+        # @info "Added three-spin term" term = ("Sz", w.s1, "Sx", w.s2, "Sy", w.s3)
       end
       count_wedge[] += 1
     end
-
   end
   
   # Validate the number of three-spin interaction terms
@@ -257,6 +256,7 @@ let
   println("\n")
   
   
+
   # Add chemical potential on edges to prevent the hole being trapped on the edges
   println("\nSetting up chemical potential on edge sites...")
   if abs(P) > 1e-8
@@ -267,6 +267,7 @@ let
   end
   println("\n")
   
+
 
   #**************************************************************************************************************** 
   """Add perturbation terms in the Hamiltonian"""
@@ -300,6 +301,8 @@ let
             loop_operator[6], loop_indices_right[idx, 6]
     end
   end
+  println("\n")
+
 
   
   println("\nSetting up string potential to make the electron density more symmetric...")
@@ -312,29 +315,29 @@ let
       # @show n, x_unit
 
       if iseven(x_coordinate)
-        os .+= 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007, "Ntot", n
-        @show n, 0.011 * sign(lambda₁) *  x_unit - sign(lambda₁) * 0.007
+        os .+= -sign(lambda₁) * (0.011 * x_unit - 0.007), "Ntot", n
+        # @show n, -sign(lambda₁) * (0.011 * x_unit - 0.007)
       else
-        os .+= 0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007, "Ntot", n
-        @show n, 0.011 * sign(lambda₁) * x_unit + sign(lambda₁) * 0.007
+        os .+= -sign(lambda₁) *(0.011 * x_unit + 0.007), "Ntot", n
+        # @show n, -sign(lambda₁) * (0.011 * x_unit - 0.007)
       end
     end
   end
-  
   println("\n")
   #**************************************************************************************************************** 
   #****************************************************************************************************************  
  
   
   
+
   
   #**************************************************************************************************************** 
   """
-    Setting up the initial state and the Hamiltonian as an MPO for the DMRG simulation
+    Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
   """
   
   println(header)
-  println("Initialize the starting MPS for the DMRG simulation")
+  println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
   println(header, "\n")
 
   
@@ -377,22 +380,10 @@ let
   if abs(N - sum(n₀) - 1) > 1e-6
     error("The system is not properly doped!")
   end 
-  #**************************************************************************************************************** 
-  #****************************************************************************************************************  
- 
+  
   
 
-
-  #**************************************************************************************************************** 
-  """
-    Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
-  """
-
-  println(header)
-  println("Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model")
-  println(header, "\n")
-
-  # Set up the parameters including bond dimensions and truncation error
+  """Set up the parameters including bond dimensions and truncation error""" 
   nsweeps = 2
   maxdim  = [20, 100, 500, 1500, 3500]
   cutoff  = [1E-10]
@@ -418,11 +409,11 @@ let
 
   #**************************************************************************************************************** 
   """
-    Running DMRG simulation to obtain the ground-state wavefunction of the Kitaev model
+    Meassure physical observables based on the optimized ground-state wavefunction
   """
 
   println(header)
-  println("Measure physical observables based on the ground-state wavefunction")
+  println("Measure physical observables based on the optimized ground-state wavefunction")
   println(header, "\n")
   
   
@@ -541,6 +532,7 @@ let
   @show plaquette_eigenvalues
 
 
+  
   """Measure eigenvalues of the order parameter(s)"""
   @timeit time_machine "order parameter(s)" begin
     # Define the central sites, excluding a margin of 2*Ny sites from both boundaries
@@ -622,9 +614,11 @@ let
 
       extended_loops[idx, :] = [n₁, n₂, n₃, n₄, n₅, n₆, n₇, n₈, n₉, n₁₀, n₁₁, n₁₂]
     end
-    println("\nThe extended loop indices used for measuring the order parameters are:")
-    @show extended_loops
-    println("\n")
+    # println("\nThe extended loop indices used for measuring the order parameters are:")
+    # for idx in 1 : size(extended_loops, 1)
+    #   @show extended_loops[idx, :]
+    # end
+    # println("\n")
 
     
     # Set up the operator string for measuring the order parameters
@@ -649,9 +643,9 @@ let
     # Generate the signs for each term in the order parameter based on the count of "S-" operators 
     # sign = [1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, 1.0]
     sign_structure = configure_signs(order_string)
-    println("\nThe signs for each term in the order parameter are:")
-    @show sign_structure
-    println("\n")
+    # println("\nThe signs for each term in the order parameter are:")
+    # @show sign_structure
+    # println("\n")
 
     
     # Measure the order parameters based on the extended loop indices and the operator string
