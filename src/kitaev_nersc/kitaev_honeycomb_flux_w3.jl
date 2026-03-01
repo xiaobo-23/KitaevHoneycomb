@@ -315,11 +315,11 @@ let
       # @show n, x_unit
 
       if iseven(x_coordinate)
-        os .+= -sign(lambda₁) * (0.011 * x_unit - 0.007), "Ntot", n
-        # @show n, -sign(lambda₁) * (0.011 * x_unit - 0.007)
+        os .+= sign(lambda₁) * (0.011 * x_unit - 0.007), "Ntot", n
+        # @show n, sign(lambda₁) * (0.011 * x_unit - 0.007)
       else
-        os .+= -sign(lambda₁) *(0.011 * x_unit + 0.007), "Ntot", n
-        # @show n, -sign(lambda₁) * (0.011 * x_unit - 0.007)
+        os .+= sign(lambda₁) *(0.011 * x_unit + 0.007), "Ntot", n
+        # @show n, sign(lambda₁) * (0.011 * x_unit - 0.007)
       end
     end
   end
@@ -656,8 +656,7 @@ let
     for (idx1, tmp) in enumerate(eachrow(extended_loops))
       for idx2 in 1 : length(order_string)
         operator = order_string[idx2]
-        
-        
+           
         os_order = OpSum()
         os_order +=  "Ntot", centers[idx1], 
           operator[1], tmp[1], 
